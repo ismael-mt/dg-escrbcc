@@ -2306,8 +2306,8 @@ initListeners();
             feedback.className = 'err';
             return;
         }
-        if (file.size > 5 * 1024 * 1024) {
-            feedback.textContent = '❌ La imatge supera els 5 MB màxims.';
+        if (file.size > 30 * 1024 * 1024) {
+            feedback.textContent = '❌ La imatge supera els 30 MB màxims.';
             feedback.className = 'err';
             return;
         }

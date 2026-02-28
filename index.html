@@ -2071,6 +2071,81 @@ initListeners();
 
 #reportModal textarea { min-height: 90px; max-height: 200px; }
 
+.report-char-counter {
+    font-size: 0.75em;
+    color: #666;
+    text-align: right;
+    margin-top: -12px;
+    margin-bottom: 14px;
+}
+
+.report-upload-area {
+    border: 1.5px dashed #444;
+    border-radius: 8px;
+    background: #1c1c1c;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 14px;
+    position: relative;
+}
+.report-upload-area:hover,
+.report-upload-area.drag-over {
+    border-color: #4fa3ff;
+    background: #1a2535;
+}
+.report-upload-area input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+.report-upload-text {
+    font-size: 0.82em;
+    color: #777;
+    pointer-events: none;
+}
+.report-upload-text span {
+    color: #4fa3ff;
+    font-weight: 600;
+}
+
+#reportImagePreview {
+    display: none;
+    margin-bottom: 14px;
+    position: relative;
+}
+#reportImagePreview img {
+    width: 100%;
+    max-height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+#reportRemoveImg {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0,0,0,0.7);
+    border: none;
+    color: #fff;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+#reportRemoveImg::before { display: none; }
+#reportRemoveImg:hover { background: rgba(255,80,80,0.85); }
+
 #reportSubmitBtn {
     width: 100%;
     padding: 11px;
@@ -2098,17 +2173,8 @@ initListeners();
 }
 #reportFeedback.ok  { color: #4caf82; }
 #reportFeedback.err { color: #ff6b6b; }
-
-.report-char-counter {
-    font-size: 0.75em;
-    color: #666;
-    text-align: right;
-    margin-top: -12px;
-    margin-bottom: 14px;
-}
 </style>
 
-<!-- Botó flotant -->
 <button id="reportBtn" title="Reportar un error o suggerir millora">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -2116,7 +2182,6 @@ initListeners();
     Reportar
 </button>
 
-<!-- Modal -->
 <div id="reportOverlay" role="dialog" aria-modal="true">
     <div id="reportModal">
         <button class="report-close" id="reportCloseBtn" title="Tancar">&#x2715;</button>
@@ -2130,13 +2195,13 @@ initListeners();
         <label>Tipus</label>
         <div class="report-type-grid">
             <button class="report-type-btn" data-tipus="bug">
-                <span class="type-icon">❌</span> Error
+                <span class="type-icon">❌</span> Error / Bug
             </button>
             <button class="report-type-btn" data-tipus="millora">
                 <span class="type-icon">💡</span> Millora
             </button>
             <button class="report-type-btn" data-tipus="pregunta">
-                <span class="type-icon">❔</span> Dubte
+                <span class="type-icon">❔</span> Pregunta
             </button>
         </div>
 
@@ -2144,10 +2209,22 @@ initListeners();
         <input type="text" id="reportTitol" maxlength="200" placeholder="Resum breu del problema o suggeriment">
 
         <label for="reportDescripcio">Descripció <span style="color:#ff6b6b">*</span></label>
-        <textarea id="reportDescripcio" maxlength="5000" placeholder="Explica amb detall: què passes, com reproduir-ho, què esperaves..."></textarea>
+        <textarea id="reportDescripcio" maxlength="5000" placeholder="Explica amb detall: què passa, com reproduir-ho, què esperaves..."></textarea>
         <div class="report-char-counter"><span id="reportCharCount">0</span> / 5000</div>
 
-        <button id="reportSubmitBtn" disabled>Enviar reporte</button>
+        <label>Captura de pantalla <span style="color:#666">(opcional · JPG, PNG, GIF, WEBP · màx. 5 MB)</span></label>
+        <div id="reportImagePreview">
+            <img id="reportPreviewImg" src="" alt="previsualització">
+            <button id="reportRemoveImg" title="Eliminar imatge">&#x2715;</button>
+        </div>
+        <div class="report-upload-area" id="reportUploadArea">
+            <input type="file" id="reportFileInput" accept="image/jpeg,image/png,image/gif,image/webp">
+            <div class="report-upload-text">
+                Arrossega una imatge aquí o <span>fes clic per seleccionar</span>
+            </div>
+        </div>
+
+        <button id="reportSubmitBtn" disabled>Enviar comentari</button>
         <div id="reportFeedback"></div>
     </div>
 </div>
@@ -2155,17 +2232,24 @@ initListeners();
 <script>
 (function() {
     const WORKER_URL = 'https://issue-reporter.ismaelmt-ia.workers.dev';
-    const overlay    = document.getElementById('reportOverlay');
-    const openBtn    = document.getElementById('reportBtn');
-    const closeBtn   = document.getElementById('reportCloseBtn');
-    const submitBtn  = document.getElementById('reportSubmitBtn');
-    const titolInput = document.getElementById('reportTitol');
-    const descInput  = document.getElementById('reportDescripcio');
-    const feedback   = document.getElementById('reportFeedback');
-    const charCount  = document.getElementById('reportCharCount');
-    const typeBtns   = document.querySelectorAll('.report-type-btn');
+
+    const overlay     = document.getElementById('reportOverlay');
+    const openBtn     = document.getElementById('reportBtn');
+    const closeBtn    = document.getElementById('reportCloseBtn');
+    const submitBtn   = document.getElementById('reportSubmitBtn');
+    const titolInput  = document.getElementById('reportTitol');
+    const descInput   = document.getElementById('reportDescripcio');
+    const feedback    = document.getElementById('reportFeedback');
+    const charCount   = document.getElementById('reportCharCount');
+    const typeBtns    = document.querySelectorAll('.report-type-btn');
+    const fileInput   = document.getElementById('reportFileInput');
+    const uploadArea  = document.getElementById('reportUploadArea');
+    const imgPreview  = document.getElementById('reportImagePreview');
+    const previewImg  = document.getElementById('reportPreviewImg');
+    const removeImg   = document.getElementById('reportRemoveImg');
 
     let selectedTipus = null;
+    let imatgeData    = null;
 
     function openModal() {
         overlay.classList.add('visible');
@@ -2177,13 +2261,19 @@ initListeners();
     }
     function resetForm() {
         selectedTipus = null;
-        titolInput.value = '';
-        descInput.value = '';
+        imatgeData    = null;
+        titolInput.value  = '';
+        descInput.value   = '';
         charCount.textContent = '0';
-        feedback.textContent = '';
-        feedback.className = '';
+        feedback.textContent  = '';
+        feedback.className    = '';
+        fileInput.value       = '';
+        imgPreview.style.display  = 'none';
+        uploadArea.style.display  = 'block';
+        previewImg.src            = '';
         typeBtns.forEach(b => b.classList.remove('selected'));
-        submitBtn.disabled = true;
+        submitBtn.disabled  = true;
+        submitBtn.textContent = 'Enviar comentari';
     }
     function validateForm() {
         submitBtn.disabled = !(
@@ -2208,43 +2298,96 @@ initListeners();
         validateForm();
     });
 
-    openBtn.addEventListener('click', openModal);
-    closeBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('visible')) closeModal(); });
-
-    submitBtn.addEventListener('click', async () => {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Enviant...';
+    function handleFile(file) {
+        if (!file) return;
+        const allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+        if (!allowed.includes(file.type)) {
+            feedback.textContent = '❌ Tipus de fitxer no permès. Usa JPG, PNG, GIF o WEBP.';
+            feedback.className = 'err';
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            feedback.textContent = '❌ La imatge supera els 5 MB màxims.';
+            feedback.className = 'err';
+            return;
+        }
         feedback.textContent = '';
         feedback.className = '';
 
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const dataUrl = e.target.result;
+            const base64  = dataUrl.split(',')[1];
+            imatgeData = { base64, mimeType: file.type, filename: file.name };
+            previewImg.src = dataUrl;
+            imgPreview.style.display  = 'block';
+            uploadArea.style.display  = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+    uploadArea.addEventListener('dragover', e => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+    uploadArea.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        handleFile(e.dataTransfer.files[0]);
+    });
+
+    removeImg.addEventListener('click', () => {
+        imatgeData           = null;
+        fileInput.value      = '';
+        previewImg.src       = '';
+        imgPreview.style.display = 'none';
+        uploadArea.style.display = 'block';
+    });
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && overlay.classList.contains('visible')) closeModal();
+    });
+
+    submitBtn.addEventListener('click', async () => {
+        submitBtn.disabled    = true;
+        submitBtn.textContent = 'Enviant...';
+        feedback.textContent  = '';
+        feedback.className    = '';
+
         try {
-            const res = await fetch(WORKER_URL, {
+            const payload = {
+                tipus:      selectedTipus,
+                titol:      titolInput.value.trim(),
+                descripcio: descInput.value.trim(),
+            };
+            if (imatgeData) payload.imatge = imatgeData;
+
+            const res  = await fetch(WORKER_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tipus: selectedTipus,
-                    titol: titolInput.value.trim(),
-                    descripcio: descInput.value.trim(),
-                }),
+                body: JSON.stringify(payload),
             });
-
             const data = await res.json();
 
             if (res.ok && data.ok) {
-                feedback.textContent = '✅ Comentari enviat correctament.';
-                feedback.className = 'ok';
+                feedback.textContent  = '✅ Comentari enviat correctament.';
+                feedback.className    = 'ok';
                 submitBtn.textContent = 'Enviat ✓';
                 setTimeout(closeModal, 2200);
             } else {
                 throw new Error(data.error || 'Error desconegut');
             }
         } catch (err) {
-            feedback.textContent = '❌ Error en enviar: ' + err.message;
-            feedback.className = 'err';
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Enviar reporte';
+            feedback.textContent  = '❌ Error en enviar: ' + err.message;
+            feedback.className    = 'err';
+            submitBtn.disabled    = false;
+            submitBtn.textContent = 'Enviar comentari';
         }
     });
 })();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vectorització de Contorns</title>
+<title>Vectorització de contorns</title>
 
 <style>
 :root{
@@ -338,181 +338,6 @@ canvas{
 .help-close-btn::before { display: none; }
 .help-divider { border: none; border-top: 1px solid #333; margin: 16px 0; }
 
-/* ===== MOBILE LAYOUT ===== */
-@media (max-width: 768px) {
-
-  /* Full-screen vertical layout */
-  .layout {
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-    overflow: hidden;
-    grid-template-columns: unset;
-  }
-
-  /* TOP: image preview — fixed 45% of screen */
-  .right {
-    order: 1;
-    flex: 0 0 45dvh;
-    min-height: 0;
-    padding: 0;
-    gap: 0;
-    overflow: hidden;
-  }
-
-  #canvasContainer {
-    height: 100%;
-    display: flex !important;
-    flex-direction: column;
-    padding: 0;
-    background: #111;
-    border-radius: 0;
-  }
-
-  #canvasContainer > div:first-child {
-    padding: 6px 10px 4px 10px;
-    background: #1a1a1a;
-    flex-shrink: 0;
-  }
-
-  #canvasContainer h4 { font-size: 0.8em; }
-
-  #canvasWrapper {
-    flex: 1;
-    min-height: 0;
-    max-height: none;
-    padding: 4px;
-    overflow: hidden;
-  }
-
-  #canvasWrapper canvas {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  /* BOTTOM: tabs panel — takes remaining space */
-  .left {
-    order: 2;
-    flex: 1;
-    min-height: 0;
-    padding: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Hide desktop title */
-  .left > h1,
-  .left > hr,
-  .left > br {
-    display: none;
-  }
-
-  /* Tab bar */
-  .mob-tabs {
-    display: flex;
-    flex-shrink: 0;
-    background: #1a1a1a;
-    border-bottom: 2px solid #333;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .mob-tabs::-webkit-scrollbar { display: none; }
-
-  .mob-tab {
-    flex: 1;
-    min-width: 60px;
-    padding: 10px 6px;
-    text-align: center;
-    font-size: 0.7em;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s;
-    white-space: nowrap;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .mob-tab.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-    background: rgba(79,163,255,0.07);
-  }
-  .mob-tab-icon { font-size: 1.3em; display: block; margin-bottom: 2px; }
-
-  /* Carousel container */
-  .mob-carousel {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .mob-panels {
-    display: flex;
-    height: 100%;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: transform;
-  }
-
-  .mob-panel {
-    flex: 0 0 100%;
-    height: 100%;
-    overflow-y: auto;
-    padding: 12px 14px;
-    box-sizing: border-box;
-  }
-
-  /* Compact sections in mobile */
-  .mob-panel section {
-    margin-bottom: 12px;
-    padding: 12px;
-  }
-
-  .mob-panel h2 { font-size: 0.9em; }
-  .mob-panel label { font-size: 0.85em; }
-  .mob-panel input[type=range] { height: 28px; }
-  .mob-panel button { padding: 10px 16px; font-size: 0.85em; }
-  .mob-panel select { padding: 8px; font-size: 0.85em; }
-  .mob-panel input[type=number],
-  .mob-panel input[type=file] { padding: 8px; font-size: 0.85em; }
-
-  /* inline sections stack in mobile */
-  .mob-panel .inline-sections {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-
-  /* Smooth control in mobile: single column */
-  .mob-panel .smooth-control {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  /* input group compact */
-  .mob-panel .input-group {
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-
-  /* Download section always visible on mobile */
-  #downloadSection {
-    display: block !important;
-  }
-
-  /* Zoom controls row */
-  .zoom-controls { flex-wrap: wrap; }
-
-  /* Desktop-only classes */
-  .desktop-only { display: none !important; }
-}
-
-/* Desktop: hide mobile elements */
-@media (min-width: 769px) {
-  .mob-tabs, .mob-carousel, .mob-panels, .mob-panel { display: none !important; }
-  .mob-desktop-content { display: contents; }
-}
 
 </style>
 </head>
@@ -523,8 +348,11 @@ canvas{
 
 <div class="left">
 
-<h1>Vectorització de contorns</h1>
-<hr><br>
+<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+    <img src="logo.png" alt="Logo" style="height: 60px; width: auto;">
+    <h1 style="margin: 0;">Vectorització de contorns</h1>
+</div>
+<br>
 
 <div class="inline-sections">
     <section>
@@ -611,34 +439,6 @@ canvas{
     <button id="downloadBtn" style="margin-top:15px;">Descarregar</button>
 </section>
 
-<!-- MOBILE CAROUSEL (sections moved here by JS on mobile) -->
-<nav class="mob-tabs" id="mobTabs" role="tablist">
-  <div class="mob-tab active" data-tab="0" role="tab">
-    <span class="mob-tab-icon">📷</span>Imatge
-  </div>
-  <div class="mob-tab" data-tab="1" role="tab">
-    <span class="mob-tab-icon">📐</span>Calibra
-  </div>
-  <div class="mob-tab" data-tab="2" role="tab">
-    <span class="mob-tab-icon">🔍</span>Contorn
-  </div>
-  <div class="mob-tab" data-tab="3" role="tab">
-    <span class="mob-tab-icon">✏️</span>Editar
-  </div>
-  <div class="mob-tab" data-tab="4" role="tab">
-    <span class="mob-tab-icon">💾</span>Exportar
-  </div>
-</nav>
-<div class="mob-carousel" id="mobCarousel">
-  <div class="mob-panels" id="mobPanels">
-    <div class="mob-panel" id="mobPanel0"></div>
-    <div class="mob-panel" id="mobPanel1"></div>
-    <div class="mob-panel" id="mobPanel2"></div>
-    <div class="mob-panel" id="mobPanel3"></div>
-    <div class="mob-panel" id="mobPanel4"></div>
-  </div>
-</div>
-
 </div>
 
 <div class="right">
@@ -648,7 +448,7 @@ canvas{
         <h4 style="margin: 0;" id="canvasTitle">Traçat vectorial sobre imatge original</h4>
         <button id="toggleCanvasBtn" style="padding: 8px 16px;">Canviar vista</button>
     </div>
-    <div class="zoom-controls" id="zoomControls" style="display:none; padding: 0 10px;">
+    <div class="zoom-controls" id="zoomControls" style="display:flex; padding: 0 10px; margin-bottom: 15px;">
         <button id="zoomInBtn">+</button>
         <span id="zoomLabel">100%</span>
         <button id="zoomOutBtn">−</button>
@@ -828,7 +628,6 @@ function toggleEditMode() {
         editPanX = 0;
         editPanY = 0;
         applyEditTransform();
-        DOM.zoomControls.style.display = 'flex';
     } else {
         button.textContent = isManualMode() ? 'Manual' : 'Editar';
         button.classList.remove('btn-desa')
@@ -837,8 +636,7 @@ function toggleEditMode() {
         processImage(false);
         DOM.restoreContourBtn.disabled = (userEditedContour === null);
 
-        // Hide zoom controls and reset transform
-        DOM.zoomControls.style.display = 'none';
+        // Reset transform when exiting edit mode
         resetEditTransform();
     }
 }
@@ -857,7 +655,6 @@ function restoreInitialContour() {
     processImage(false);
     
     DOM.restoreContourBtn.disabled = true;
-    DOM.zoomControls.style.display = 'none';
     resetEditTransform();
 }
 
@@ -1032,8 +829,8 @@ function handleOverlayClick(event) {
 function handleMouseDown(event) {
     if (!imageObj) return;
 
-    // Alt+click OR middle mouse button = pan in edit mode
-    if (isEditMode && (event.altKey || event.button === 1)) {
+    // Alt+click OR middle mouse button = pan (always available)
+    if (event.altKey || event.button === 1) {
         isPanning = true;
         panStartX = event.clientX - editPanX;
         panStartY = event.clientY - editPanY;
@@ -1078,7 +875,7 @@ function handleMouseDown(event) {
 
 function handleDragMove(event) {
     // Handle panning
-    if (isPanning && isEditMode) {
+    if (isPanning) {
         editPanX = event.clientX - panStartX;
         editPanY = event.clientY - panStartY;
         applyEditTransform();
@@ -1334,7 +1131,6 @@ function initListeners() {
     // Prevent browser auto-scroll on middle mouse button
     DOM.canvasWrapper.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
     DOM.zoomInBtn.addEventListener('click', () => {
-        if (!isEditMode) return;
         const wrapper = DOM.canvasWrapper;
         const cx = wrapper.clientWidth / 2;
         const cy = wrapper.clientHeight / 2;
@@ -1345,7 +1141,6 @@ function initListeners() {
         applyEditTransform();
     });
     DOM.zoomOutBtn.addEventListener('click', () => {
-        if (!isEditMode) return;
         const wrapper = DOM.canvasWrapper;
         const cx = wrapper.clientWidth / 2;
         const cy = wrapper.clientHeight / 2;
@@ -1356,7 +1151,6 @@ function initListeners() {
         applyEditTransform();
     });
     DOM.zoomResetBtn.addEventListener('click', () => {
-        if (!isEditMode) return;
         editZoom = 1; editPanX = 0; editPanY = 0;
         applyEditTransform();
     });
@@ -1853,7 +1647,6 @@ function clampPan() {
 }
 
 function handleEditWheel(event) {
-    if (!isEditMode) return;
     event.preventDefault();
 
     const wrapper = DOM.canvasWrapper;
@@ -2111,127 +1904,6 @@ function downloadFile(content, filename, mimeType) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
-
-// ===== TOUCH SUPPORT FOR CANVAS (mobile) =====
-(function() {
-  function getTouchCoords(touchEvent) {
-    const touch = touchEvent.changedTouches[0];
-    return { clientX: touch.clientX, clientY: touch.clientY, shiftKey: false, button: 0 };
-  }
-
-  const canvas = document.getElementById('overlayCanvas');
-  if (!canvas) return;
-
-  canvas.addEventListener('touchstart', function(e) {
-    if (e.touches.length === 1) {
-      e.preventDefault();
-      const mock = getTouchCoords(e);
-      canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: mock.clientX, clientY: mock.clientY, bubbles: true }));
-    }
-  }, { passive: false });
-
-  canvas.addEventListener('touchmove', function(e) {
-    if (e.touches.length === 1) {
-      e.preventDefault();
-      const t = e.touches[0];
-      canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY, bubbles: true }));
-    }
-  }, { passive: false });
-
-  canvas.addEventListener('touchend', function(e) {
-    e.preventDefault();
-    const mock = getTouchCoords(e);
-    canvas.dispatchEvent(new MouseEvent('mouseup', { clientX: mock.clientX, clientY: mock.clientY, bubbles: true }));
-    // Simulate click for calibration
-    canvas.dispatchEvent(new MouseEvent('click', { clientX: mock.clientX, clientY: mock.clientY, bubbles: true }));
-  }, { passive: false });
-})();
-
-// ===== MOBILE REORGANIZATION & TAB LOGIC =====
-(function() {
-  const isMobile = () => window.innerWidth <= 768;
-
-  // Sections to distribute across tabs (by original HTML order in .left)
-  // Tab 0: Selecció (inline-sections div containing steps 1+2)
-  // Tab 1: Calibració (already inside inline-sections, we split)
-  // Tab 2: Detecció del contorn (section.controls #1)
-  // Tab 3: Modificació del contorn (section.controls #2)
-  // Tab 4: Exportació (#downloadSection)
-
-  function setupMobile() {
-    if (!isMobile()) return;
-
-    const left = document.querySelector('.left');
-    const panels = [0,1,2,3,4].map(i => document.getElementById('mobPanel' + i));
-
-    // Grab all direct section children (and the inline-sections div)
-    const inlineSections = left.querySelector('.inline-sections');
-    const controlSections = left.querySelectorAll('section.controls');
-    const downloadSection = document.getElementById('downloadSection');
-
-    // Panel 0: image selection (first section inside inline-sections)
-    if (inlineSections) {
-      const secs = inlineSections.querySelectorAll('section');
-      if (secs[0]) panels[0].appendChild(secs[0]);
-      // Panel 1: calibration (second section)
-      if (secs[1]) panels[1].appendChild(secs[1]);
-      // Remove now-empty inline-sections wrapper
-      if (inlineSections.children.length === 0) inlineSections.remove();
-    }
-
-    // Panel 2: contour detection
-    if (controlSections[0]) panels[2].appendChild(controlSections[0]);
-    // Panel 3: contour modification
-    if (controlSections[1]) panels[3].appendChild(controlSections[1]);
-    // Panel 4: export
-    if (downloadSection) {
-      downloadSection.style.display = 'block';
-      panels[4].appendChild(downloadSection);
-    }
-  }
-
-  function activateTab(idx) {
-    const tabs = document.querySelectorAll('.mob-tab');
-    const panelsEl = document.getElementById('mobPanels');
-    tabs.forEach((t, i) => t.classList.toggle('active', i === idx));
-    panelsEl.style.transform = `translateX(-${idx * 100}%)`;
-  }
-
-  // Swipe support
-  let touchStartX = 0, touchStartY = 0, currentTab = 0;
-  function setupSwipe() {
-    const carousel = document.getElementById('mobCarousel');
-    if (!carousel) return;
-    carousel.addEventListener('touchstart', e => {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    carousel.addEventListener('touchend', e => {
-      const dx = e.changedTouches[0].clientX - touchStartX;
-      const dy = e.changedTouches[0].clientY - touchStartY;
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-        const tabs = document.querySelectorAll('.mob-tab');
-        const total = tabs.length;
-        if (dx < 0 && currentTab < total - 1) currentTab++;
-        else if (dx > 0 && currentTab > 0) currentTab--;
-        activateTab(currentTab);
-      }
-    }, { passive: true });
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    if (!isMobile()) return;
-    setupMobile();
-    setupSwipe();
-
-    document.querySelectorAll('.mob-tab').forEach((tab, i) => {
-      tab.addEventListener('click', () => {
-        currentTab = i;
-        activateTab(i);
-      });
-    });
-  });
-})();
 
 initListeners();
 

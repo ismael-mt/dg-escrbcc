@@ -1928,5 +1928,327 @@ initListeners();
 })();
 </script>
 
+<style>
+#reportBtn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 20px;
+    border: 1.5px solid #4fa3ff;
+    background: #1a1a2e;
+    color: #4fa3ff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 4px 18px rgba(79,163,255,0.18);
+    transition: background 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
+    overflow: hidden;
+}
+#reportBtn::before { display: none; }
+#reportBtn:hover {
+    background: #4fa3ff;
+    color: #fff;
+    border-color: #4fa3ff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(79,163,255,0.32);
+}
+#reportBtn:active { transform: scale(0.97); }
+
+#reportOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+#reportOverlay.visible { display: flex; }
+
+#reportModal {
+    background: #222;
+    border-radius: 14px;
+    padding: 30px 32px 26px;
+    max-width: 480px;
+    width: 92%;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+    position: relative;
+    color: #f2f2f2;
+    animation: reportSlideIn 0.22s cubic-bezier(.4,0,.2,1);
+}
+@keyframes reportSlideIn {
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+#reportModal h2 {
+    margin: 0 0 18px 0;
+    font-size: 1.15em;
+    color: #4fa3ff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.report-close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    background: transparent;
+    border: none;
+    color: #b9b9b9;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.report-close:hover { color: #f2f2f2; }
+.report-close::before { display: none; }
+
+.report-type-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.report-type-btn {
+    padding: 9px 6px;
+    border-radius: 8px;
+    border: 1.5px solid #444;
+    background: #2a2a2a;
+    color: #b9b9b9;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.report-type-btn::before { display: none; }
+.report-type-btn:hover { border-color: #4fa3ff; color: #4fa3ff; background: #1e2a3a; }
+.report-type-btn.selected { border-color: #4fa3ff; color: #fff; background: #1a3555; }
+.report-type-btn .type-icon { font-size: 18px; line-height: 1; }
+
+#reportModal label {
+    display: block;
+    color: #b9b9b9;
+    font-size: 0.85em;
+    margin-bottom: 5px;
+}
+
+#reportModal input[type=text],
+#reportModal textarea {
+    width: 100%;
+    background: #1c1c1c;
+    border: 1px solid #444;
+    border-radius: 8px;
+    color: #f2f2f2;
+    padding: 9px 12px;
+    font-size: 0.9em;
+    box-sizing: border-box;
+    resize: vertical;
+    transition: border-color 0.15s;
+    font-family: inherit;
+    margin-bottom: 14px;
+}
+#reportModal input[type=text]:focus,
+#reportModal textarea:focus {
+    outline: none;
+    border-color: #4fa3ff;
+}
+
+#reportModal textarea { min-height: 90px; max-height: 200px; }
+
+#reportSubmitBtn {
+    width: 100%;
+    padding: 11px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    border: 2px solid #4fa3ff;
+    background: transparent;
+    color: #4fa3ff;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+    overflow: hidden;
+}
+#reportSubmitBtn::before { display: none; }
+#reportSubmitBtn:hover:not(:disabled) { background: #4fa3ff; color: #fff; }
+#reportSubmitBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+#reportFeedback {
+    margin-top: 12px;
+    font-size: 0.85em;
+    text-align: center;
+    min-height: 20px;
+    color: #b9b9b9;
+}
+#reportFeedback.ok  { color: #4caf82; }
+#reportFeedback.err { color: #ff6b6b; }
+
+.report-char-counter {
+    font-size: 0.75em;
+    color: #666;
+    text-align: right;
+    margin-top: -12px;
+    margin-bottom: 14px;
+}
+</style>
+
+<!-- Botó flotant -->
+<button id="reportBtn" title="Reportar un error o suggerir millora">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    Reportar
+</button>
+
+<!-- Modal -->
+<div id="reportOverlay" role="dialog" aria-modal="true">
+    <div id="reportModal">
+        <button class="report-close" id="reportCloseBtn" title="Tancar">&#x2715;</button>
+        <h2>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Reportar incidència o millora
+        </h2>
+
+        <label>Tipus</label>
+        <div class="report-type-grid">
+            <button class="report-type-btn" data-tipus="bug">
+                <span class="type-icon">🐛</span> Error / Bug
+            </button>
+            <button class="report-type-btn" data-tipus="millora">
+                <span class="type-icon">💡</span> Millora
+            </button>
+            <button class="report-type-btn" data-tipus="pregunta">
+                <span class="type-icon">❓</span> Pregunta
+            </button>
+        </div>
+
+        <label for="reportTitol">Títol <span style="color:#ff6b6b">*</span></label>
+        <input type="text" id="reportTitol" maxlength="200" placeholder="Resum breu del problema o suggeriment">
+
+        <label for="reportDescripcio">Descripció <span style="color:#ff6b6b">*</span></label>
+        <textarea id="reportDescripcio" maxlength="5000" placeholder="Explica amb detall: què passes, com reproduir-ho, què esperaves..."></textarea>
+        <div class="report-char-counter"><span id="reportCharCount">0</span> / 5000</div>
+
+        <button id="reportSubmitBtn" disabled>Enviar reporte</button>
+        <div id="reportFeedback"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const WORKER_URL = 'issue-reporter.ismaelmt-ia.workers.dev';
+    const overlay    = document.getElementById('reportOverlay');
+    const openBtn    = document.getElementById('reportBtn');
+    const closeBtn   = document.getElementById('reportCloseBtn');
+    const submitBtn  = document.getElementById('reportSubmitBtn');
+    const titolInput = document.getElementById('reportTitol');
+    const descInput  = document.getElementById('reportDescripcio');
+    const feedback   = document.getElementById('reportFeedback');
+    const charCount  = document.getElementById('reportCharCount');
+    const typeBtns   = document.querySelectorAll('.report-type-btn');
+
+    let selectedTipus = null;
+
+    function openModal() {
+        overlay.classList.add('visible');
+        titolInput.focus();
+    }
+    function closeModal() {
+        overlay.classList.remove('visible');
+        resetForm();
+    }
+    function resetForm() {
+        selectedTipus = null;
+        titolInput.value = '';
+        descInput.value = '';
+        charCount.textContent = '0';
+        feedback.textContent = '';
+        feedback.className = '';
+        typeBtns.forEach(b => b.classList.remove('selected'));
+        submitBtn.disabled = true;
+    }
+    function validateForm() {
+        submitBtn.disabled = !(
+            selectedTipus &&
+            titolInput.value.trim().length > 0 &&
+            descInput.value.trim().length > 0
+        );
+    }
+
+    typeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            typeBtns.forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedTipus = btn.dataset.tipus;
+            validateForm();
+        });
+    });
+
+    titolInput.addEventListener('input', validateForm);
+    descInput.addEventListener('input', () => {
+        charCount.textContent = descInput.value.length;
+        validateForm();
+    });
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('visible')) closeModal(); });
+
+    submitBtn.addEventListener('click', async () => {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviant...';
+        feedback.textContent = '';
+        feedback.className = '';
+
+        try {
+            const res = await fetch(WORKER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tipus: selectedTipus,
+                    titol: titolInput.value.trim(),
+                    descripcio: descInput.value.trim(),
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.ok) {
+                feedback.textContent = '✅ Reporte enviat correctament. Gràcies!';
+                feedback.className = 'ok';
+                submitBtn.textContent = 'Enviat ✓';
+                setTimeout(closeModal, 2200);
+            } else {
+                throw new Error(data.error || 'Error desconegut');
+            }
+        } catch (err) {
+            feedback.textContent = '❌ Error en enviar: ' + err.message;
+            feedback.className = 'err';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Enviar reporte';
+        }
+    });
+})();
+</script>
+    
 </body>
 </html>

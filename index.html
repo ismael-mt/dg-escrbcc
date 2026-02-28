@@ -1298,10 +1298,52 @@ function processImage(recalculateContour = true) {
         let imageData = ctxTemp.getImageData(0, 0, imageObj.width, imageObj.height);
         let data = imageData.data;
         const threshold = parseInt(DOM.thresholdSlider.value);
-        let binary = new Array(imageObj.width * imageObj.height).fill(0);
+        const W = imageObj.width;
+        const H = imageObj.height;
+
+        const gray = new Float32Array(W * H);
         for (let i = 0; i < data.length; i += 4) {
-            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            binary[i / 4] = (avg < threshold) ? 0 : 255;
+            gray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        }
+
+        let grayMin = 255, grayMax = 0;
+        for (let i = 0; i < gray.length; i++) {
+            if (gray[i] < grayMin) grayMin = gray[i];
+            if (gray[i] > grayMax) grayMax = gray[i];
+        }
+        const grayRange = grayMax - grayMin || 1;
+        const stretched = new Float32Array(W * H);
+        for (let i = 0; i < gray.length; i++) {
+            stretched[i] = ((gray[i] - grayMin) / grayRange) * 255;
+        }
+
+        const cornerSamples = [0, W-1, (H-1)*W, (H-1)*W+W-1,
+            Math.floor(H*0.1)*W, Math.floor(H*0.1)*W+W-1,
+            Math.floor(H*0.9)*W, Math.floor(H*0.9)*W+W-1];
+        let bgSum = 0;
+        for (const idx of cornerSamples) bgSum += stretched[idx];
+        const bgBrightness = bgSum / cornerSamples.length;
+
+        const cx = (W / 2) | 0, cy = (H / 2) | 0;
+        let objSum = 0, objCount = 0;
+        const sampleR = Math.min(W, H) * 0.1 | 0;
+        for (let dy = -sampleR; dy <= sampleR; dy += 2) {
+            for (let dx = -sampleR; dx <= sampleR; dx += 2) {
+                if (dx*dx + dy*dy <= sampleR*sampleR) {
+                    objSum += stretched[(cy+dy)*W+(cx+dx)];
+                    objCount++;
+                }
+            }
+        }
+        const objBrightness = objSum / (objCount || 1);
+        const objectIsBrighter = objBrightness > bgBrightness;
+
+        let binary = new Array(W * H).fill(0);
+        for (let i = 0; i < stretched.length; i++) {
+            const isObject = objectIsBrighter
+                ? stretched[i] >= threshold
+                : stretched[i] < threshold;
+            binary[i] = isObject ? 0 : 255;
         }
         
         initialDetectedContour = detectContour(binary, imageObj.width, imageObj.height);
@@ -1509,9 +1551,20 @@ function calculateOtsuThreshold() {
     const data = imageData.data;
     const numPixels = imageData.width * imageData.height;
 
-    const histogram = new Array(256).fill(0);
+    const rawGray = new Float32Array(numPixels);
     for (let i = 0; i < data.length; i += 4) {
-        const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+        rawGray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    }
+    let gMin = 255, gMax = 0;
+    for (let i = 0; i < numPixels; i++) {
+        if (rawGray[i] < gMin) gMin = rawGray[i];
+        if (rawGray[i] > gMax) gMax = rawGray[i];
+    }
+    const gRange = gMax - gMin || 1;
+
+    const histogram = new Array(256).fill(0);
+    for (let i = 0; i < numPixels; i++) {
+        const gray = Math.round(((rawGray[i] - gMin) / gRange) * 255);
         histogram[gray]++;
     }
 

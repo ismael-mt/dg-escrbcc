@@ -65,7 +65,7 @@ section{
 
 .controls input[type=range],
 .controls select {
-  margin-bottom: 15px; /* espacio extra debajo de cada control */
+  margin-bottom: 15px; 
 }
 
 h1,h2,h3,h4{
@@ -337,7 +337,6 @@ canvas{
 .help-close-btn:hover { color: var(--text); }
 .help-close-btn::before { display: none; }
 .help-divider { border: none; border-top: 1px solid #333; margin: 16px 0; }
-
 
 </style>
 </head>
@@ -623,7 +622,6 @@ function toggleEditMode() {
         drawVectorContour();
         DOM.restoreContourBtn.disabled = false;
 
-        // Show zoom controls and reset zoom
         editZoom = 1;
         editPanX = 0;
         editPanY = 0;
@@ -636,7 +634,6 @@ function toggleEditMode() {
         processImage(false);
         DOM.restoreContourBtn.disabled = (userEditedContour === null);
 
-        // Reset transform when exiting edit mode
         resetEditTransform();
     }
 }
@@ -747,7 +744,6 @@ function handleImageLoad(e) {
     }
 }
 
-
 function getScaledLineWidth(visualWidth) {
     if (!imageObj || DOM.overlayCanvas.clientWidth === 0) return visualWidth;
     
@@ -829,7 +825,6 @@ function handleOverlayClick(event) {
 function handleMouseDown(event) {
     if (!imageObj) return;
 
-    // Alt+click OR middle mouse button = pan (always available)
     if (event.altKey || event.button === 1) {
         isPanning = true;
         panStartX = event.clientX - editPanX;
@@ -874,7 +869,6 @@ function handleMouseDown(event) {
 }
 
 function handleDragMove(event) {
-    // Handle panning
     if (isPanning) {
         editPanX = event.clientX - panStartX;
         editPanY = event.clientY - panStartY;
@@ -987,7 +981,6 @@ DOM.overlayCanvas.addEventListener('dblclick', (event) => {
     const p = getOriginalCoords(event);
     const canvasScale = DOM.overlayCanvas.width / DOM.overlayCanvas.clientWidth;
 
-    // Manual mode with no or few points: just append
     if (contourPath.length < 2) {
         contourPath.push(p);
         drawVectorContour();
@@ -1040,7 +1033,6 @@ DOM.overlayCanvas.addEventListener('contextmenu', (event) => {
 
 let showingOverlay = true;
 
-// Zoom / pan state (only active in edit mode)
 let editZoom = 1;
 let editPanX = 0;
 let editPanY = 0;
@@ -1074,7 +1066,7 @@ function updateEditBtnForThreshold() {
         DOM.editBtn.textContent = 'Manual';
         DOM.editBtn.disabled = false;
     } else {
-        // Restore normal label; only enable if there's a contour
+        
         if (!isEditMode) {
             DOM.editBtn.textContent = 'Editar';
             DOM.editBtn.disabled = !(contourPath && contourPath.length > 0);
@@ -1126,9 +1118,9 @@ function initListeners() {
     DOM.editBtn.addEventListener('click', toggleEditMode);
     DOM.restoreContourBtn.addEventListener('click', restoreInitialContour); 
 
-    // Zoom controls
+    
     DOM.canvasWrapper.addEventListener('wheel', handleEditWheel, { passive: false });
-    // Prevent browser auto-scroll on middle mouse button
+    
     DOM.canvasWrapper.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
     DOM.zoomInBtn.addEventListener('click', () => {
         const wrapper = DOM.canvasWrapper;
@@ -1162,7 +1154,6 @@ function initListeners() {
     if (imageObj && (initialDetectedContour || userEditedContour)) processImage(false);
 });
 }
-
 
 function drawCalibrationPoints() {
     const ctxOverlay = DOM.overlayCanvas.getContext('2d');
@@ -1317,7 +1308,7 @@ function processImage(recalculateContour = true) {
         userEditedContour = null; 
         DOM.restoreContourBtn.disabled = true;
 
-        // In manual mode (threshold=0), enable edit button even without detected contour
+        
         if (isManualMode()) {
             DOM.editBtn.textContent = 'Manual';
             DOM.editBtn.disabled = false;
@@ -1355,8 +1346,8 @@ function processImage(recalculateContour = true) {
                     ? ClipperLib.JoinType.jtMiter
                     : ClipperLib.JoinType.jtRound;
                 const miterLimit = useMiter ? 10 : 1;
-                // Amb jtMiter, punts massa propers a una cantonada generen pics o truncats.
-                // Una pre-simplificació agressiva garanteix un únic vèrtex per cantonada real.
+                
+                
                 const contourForOffset = useMiter
                     ? simplifyContour(filteredContour, offsetPixels * 0.5)
                     : filteredContour;
@@ -1384,7 +1375,6 @@ function processImage(recalculateContour = true) {
         DOM.editBtn.disabled = true;
     }
 }
-
 
 function drawPath(ctx, points, scaleX, scaleY) {
     if (!points || points.length === 0) return;
@@ -1566,8 +1556,8 @@ function offsetContourClipper(points, offset, joinType, miterLimit) {
     try {
         const scale = 100000;
         const scaledPoints = points.map(p => ({ X: Math.round(p.x * scale), Y: Math.round(p.y * scale) }));
-        // arcTolerance escalat: 0.25px * scale dona precisió adequada per a corbes;
-        // per a jtMiter no s'usa, però cal que sigui coherent amb l'escala.
+        
+        
         const arcTolerance = 0.25 * scale;
         const co = new ClipperLib.ClipperOffset(miterLimit, arcTolerance);
         co.AddPath(scaledPoints, joinType, ClipperLib.EndType.etClosedPolygon);
@@ -1618,8 +1608,6 @@ function normalize(v) {
     return { x: v.x / len, y: v.y / len };
 }
 
-// ── Zoom / Pan helpers ──────────────────────────────────────────────────────
-
 function applyEditTransform() {
     const canvas = DOM.overlayCanvas.style.display !== 'none' ? DOM.overlayCanvas : DOM.vectorCanvas;
     const transform = `translate(${editPanX}px, ${editPanY}px) scale(${editZoom})`;
@@ -1651,14 +1639,14 @@ function handleEditWheel(event) {
 
     const wrapper = DOM.canvasWrapper;
     const rect = wrapper.getBoundingClientRect();
-    // Mouse position relative to wrapper
+    
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
     const delta = event.deltaY < 0 ? 1.15 : (1 / 1.15);
     const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, editZoom * delta));
 
-    // Zoom toward mouse position
+    
     editPanX = mouseX - (mouseX - editPanX) * (newZoom / editZoom);
     editPanY = mouseY - (mouseY - editPanY) * (newZoom / editZoom);
     editZoom = newZoom;
@@ -1757,8 +1745,8 @@ function downloadDXF() {
     const scale = scaleFactorMMPerPixel;
     const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
 
-    // DXF lineweight is in hundredths of mm, must be a standard value.
-    // Map to nearest standard DXF lineweight value.
+    
+    
     const stdWeights = [0,5,9,13,15,18,20,25,30,35,40,50,53,60,70,80,90,100,106,120,140,158,200,211];
     const lwCentiMM = Math.round(lineWidth * 100);
     const lineWeightCentiMM = stdWeights.reduce((a, b) => Math.abs(b - lwCentiMM) < Math.abs(a - lwCentiMM) ? b : a);
@@ -1773,42 +1761,42 @@ function downloadDXF() {
     const offsetX = minX, offsetY = minY;
     const contourHeightMM = (maxY - minY) * scale;
 
-    // Build a proper DXF with TABLES section including LAYER definition
-    // so that Inkscape and other apps respect the lineweight.
+    
+    
     const lines = [];
 
-    // HEADER
+    
     lines.push('0','SECTION','2','HEADER',
-        '9','$INSUNITS','70','4',        // 4 = mm
-        '9','$LWDISPLAY','290','1',      // display lineweights
+        '9','$INSUNITS','70','4',        
+        '9','$LWDISPLAY','290','1',      
         '0','ENDSEC');
 
-    // TABLES
+    
     lines.push('0','SECTION','2','TABLES',
         '0','TABLE','2','LTYPE','70','1',
         '0','LTYPE','2','CONTINUOUS','70','0','3','Solid line','72','65','73','0','40','0.0',
         '0','ENDTAB',
         '0','TABLE','2','LAYER','70','1',
         '0','LAYER',
-        '2','CONTORN',   // layer name
-        '70','0',        // flags
-        '62','1',        // colour index 1 = red
-        '6','CONTINUOUS',// linetype
-        '370', lineWeightCentiMM.toString(), // lineweight in hundredths of mm
+        '2','CONTORN',   
+        '70','0',        
+        '62','1',        
+        '6','CONTINUOUS',
+        '370', lineWeightCentiMM.toString(), 
         '0','ENDTAB',
         '0','ENDSEC');
 
-    // BLOCKS (required empty section)
+    
     lines.push('0','SECTION','2','BLOCKS','0','ENDSEC');
 
-    // ENTITIES
+    
     lines.push('0','SECTION','2','ENTITIES',
         '0','LWPOLYLINE',
-        '8','CONTORN',           // layer
-        '62','1',                // colour red (redundant but explicit)
-        '370', lineWeightCentiMM.toString(), // lineweight on entity too
+        '8','CONTORN',           
+        '62','1',                
+        '370', lineWeightCentiMM.toString(), 
         '90', contourPath.length.toString(),
-        '70','1');               // 1 = closed polyline
+        '70','1');               
 
     for (let i = 0; i < contourPath.length; i++) {
         const x = ((contourPath[i].x - offsetX) * scale).toFixed(4);
@@ -1827,7 +1815,7 @@ function downloadPDF() {
     if (scaleFactorMMPerPixel === 0) { alert('Per favor, realitza la calibració (pas 2) abans de descarregar.'); return; }
     const scale = scaleFactorMMPerPixel; 
     const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
-    const mmToPt = 72 / 25.4; // exact: 1 inch = 72pt = 25.4mm
+    const mmToPt = 72 / 25.4; 
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const p of contourPath) {
@@ -1841,35 +1829,35 @@ function downloadPDF() {
     const contourHeightMM = (maxY - minY) * scale;
     const pdfWidth  = (contourWidthMM  * mmToPt).toFixed(3);
     const pdfHeight = (contourHeightMM * mmToPt).toFixed(3);
-    const pdfLineWidth = (lineWidth * mmToPt).toFixed(4); // line width in pt
+    const pdfLineWidth = (lineWidth * mmToPt).toFixed(4); 
 
     const sx = (x) => ((x - offsetX) * scale * mmToPt).toFixed(3);
     const sy = (y) => ((contourHeightMM - (y - offsetY) * scale) * mmToPt).toFixed(3);
 
-    // Content stream
+    
     let streamContent = '';
-    streamContent += `q\n`;            // save graphics state
-    streamContent += `/GS1 gs\n`;     // apply ExtGState (sets LW)
-    streamContent += `1 0 0 RG\n`;   // stroke colour: red
-    streamContent += `2 J\n`;        // round line caps
-    streamContent += `1 j\n`;        // round line joins
+    streamContent += `q\n`;            
+    streamContent += `/GS1 gs\n`;     
+    streamContent += `1 0 0 RG\n`;   
+    streamContent += `2 J\n`;        
+    streamContent += `1 j\n`;        
     streamContent += `${sx(contourPath[0].x)} ${sy(contourPath[0].y)} m\n`;
     for (let i = 1; i < contourPath.length; i++) {
         streamContent += `${sx(contourPath[i].x)} ${sy(contourPath[i].y)} l\n`;
     }
-    streamContent += `h\nS\n`;        // close + stroke only (no fill)
-    streamContent += `Q\n`;           // restore graphics state
+    streamContent += `h\nS\n`;        
+    streamContent += `Q\n`;           
 
-    // ExtGState object with explicit line width (LW in pt)
+    
     const obj5 = `5 0 obj\n<< /Type /ExtGState /LW ${pdfLineWidth} /LC 1 /LJ 1 >>\nendobj\n`;
 
-    // PDF objects
+    
     const obj1 = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
     const obj2 = `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`;
     const obj3 = `3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 ${pdfWidth} ${pdfHeight}]\n/Contents 4 0 R\n/Resources <<\n  /ProcSet [/PDF]\n  /ExtGState << /GS1 5 0 R >>\n>>\n>>\nendobj\n`;
     const obj4 = `4 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}endstream\nendobj\n`;
 
-    // Compute real byte offsets
+    
     const header = `%PDF-1.4\n`;
     const off1 = header.length;
     const off2 = off1 + obj1.length;
@@ -1907,7 +1895,6 @@ function downloadFile(content, filename, mimeType) {
 
 initListeners();
 
-// Ajuda contextual per seccions
 (function() {
     function closeAll() {
         document.querySelectorAll('.help-overlay').forEach(o => o.classList.remove('visible'));

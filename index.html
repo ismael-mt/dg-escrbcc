@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vectorització de Contorns</title>
+
+<style>
+:root{
+    --bg:#181818;
+    --panel:#222;
+    --surface:#2a2a2a;
+    --text:#f2f2f2;
+    --text-muted:#b9b9b9;
+    --primary:#4fa3ff;
+    --secondary:#a678ff;
+    --radius:10px;
+    --shadow:0 0 10px rgba(0,0,0,0.4);
+}
+
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+}
+
+.layout{
+    display:grid;
+    grid-template-columns:50% 50%;
+    height:100vh;
+    overflow:hidden;
+}
+
+.left{
+    background:var(--panel);
+    padding:20px;
+    overflow-y:auto;
+    box-sizing:border-box;
+}
+
+.right{
+    background:var(--bg);
+    padding:0px;
+    overflow-y:auto;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+}
+
+section{
+    background:var(--surface);
+    padding:15px;
+    border-radius:var(--radius);
+    margin-bottom:20px;
+    box-shadow:var(--shadow);
+}
+
+.controls label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-muted);
+}
+
+.controls input[type=range],
+.controls select {
+  margin-bottom: 15px; /* espacio extra debajo de cada control */
+}
+
+h1,h2,h3,h4{
+    margin-top:0;
+    color:var(--text);
+}
+
+label{
+    display:block;
+    margin-bottom:5px;
+    color:var(--text-muted);
+}
+
+input[type=file],
+input[type=number],
+select{
+    width:100%;
+    padding:10px;
+    background:#333;
+    border:1px solid #444;
+    border-radius:var(--radius);
+    color:var(--text);
+    box-sizing:border-box;
+}
+
+.smooth-control #joinTypeBtn {
+    padding: 10px;
+    background: #333;
+    border: 1px solid #444;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 400;
+    border-radius: var(--radius);
+    transition: all 0.2s;
+}
+.smooth-control #joinTypeBtn.btn-desa {
+    background-color: #f1e974;
+    color: #000000;
+    border-color: #000000;
+}   
+
+input[type=range]{width:100%;}
+
+button{
+    padding:12px 24px;
+    border:2px solid #4fa3ff;
+    border-radius:8px;
+    cursor:pointer;
+    background: transparent;
+    color: #4fa3ff;
+    font-size:15px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: #4fa3ff;
+    transition: width 0.3s ease;
+    z-index: -1;
+}
+
+button:hover::before {
+    width: 100%;
+}
+
+button:hover{
+    color: white;
+    border-color: #ffffff;
+}
+
+button:active{
+    transform: scale(0.98);
+}
+
+button:disabled{
+    background: transparent;
+    border-color: #555;
+    color: #666;
+    cursor: not-allowed;
+}
+
+button:disabled::before {
+    display: none;
+}
+
+.btn-desa {
+  background-color: #f1e974;
+  color: #000000;
+  border-color: #000000;
+}
+
+.canvas-box{
+    background:var(--surface);
+    padding:10px;
+    box-shadow:var(--shadow);
+}
+
+canvas{
+    width:100%;
+    height:auto;
+    background:#000;
+    border-radius:var(--radius);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+.inline-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.inline-sections > section {
+  margin-bottom: 20px;
+}
+
+@media (max-width: 800px) {
+  .inline-sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+.input-group {
+  display: grid;
+  grid-template-columns: 4fr 3fr 3fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.input-group label,
+.input-group input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#calibStatus {
+  font-size: 0.9em
+}
+
+.smooth-control {
+  display: grid;
+  grid-template-columns: 20fr 3fr;
+  align-items: center;
+  gap: 20px;
+}
+
+.canvas-box {
+    overflow: hidden;
+    position: relative;
+}
+
+#canvasWrapper {
+    overflow: auto;
+    max-height: calc(100vh - 80px);
+    position: relative;
+    background: #111;
+    border-radius: var(--radius);
+}
+
+#canvasWrapper canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    cursor: default;
+    transform-origin: 0 0;
+}
+
+.zoom-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.zoom-controls button {
+    padding: 4px 12px;
+    font-size: 13px;
+}
+
+#zoomLabel {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    min-width: 50px;
+    text-align: center;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.section-header h2 { margin: 0; }
+.help-icon-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--secondary);
+    border: none !important;
+    color: white !important;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 !important;
+    line-height: 1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.help-icon-btn:hover { background: #8a55ff !important; transform: scale(1.1); color: white !important; }
+.help-icon-btn::before { display: none !important; }
+
+.help-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+.help-overlay.visible { display: flex; }
+.help-modal {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 28px 32px;
+    max-width: 520px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    position: relative;
+    color: var(--text);
+    max-height: 85vh;
+    overflow-y: auto;
+}
+.help-modal h2 { color: var(--primary); margin-bottom: 14px; font-size: 1.15em; }
+.help-modal h3 { color: var(--secondary); margin: 18px 0 8px 0; font-size: 0.95em; letter-spacing: 0.07em; margin-bottom: 14px }
+.help-modal p, .help-modal li { color: var(--text-muted); line-height: 1.6; font-size: 0.93em; }
+.help-modal ul { padding-left: 18px; margin: 0 0 8px 0; }
+.help-modal li { margin-bottom: 6px; }
+.help-modal kbd { display: inline-block; background: #333; border: 1px solid #555; border-radius: 5px; padding: 1px 7px; font-size: 0.88em; color: var(--text); font-family: monospace; margin: 0 2px; }
+.help-close-btn { position: absolute; top: 12px; right: 16px; background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 0; line-height: 1; }
+.help-close-btn:hover { color: var(--text); }
+.help-close-btn::before { display: none; }
+.help-divider { border: none; border-top: 1px solid #333; margin: 16px 0; }
+
+/* ===== MOBILE LAYOUT ===== */
+@media (max-width: 768px) {
+
+  /* Full-screen vertical layout */
+  .layout {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    grid-template-columns: unset;
+  }
+
+  /* TOP: image preview — fixed 45% of screen */
+  .right {
+    order: 1;
+    flex: 0 0 45dvh;
+    min-height: 0;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  #canvasContainer {
+    height: 100%;
+    display: flex !important;
+    flex-direction: column;
+    padding: 0;
+    background: #111;
+    border-radius: 0;
+  }
+
+  #canvasContainer > div:first-child {
+    padding: 6px 10px 4px 10px;
+    background: #1a1a1a;
+    flex-shrink: 0;
+  }
+
+  #canvasContainer h4 { font-size: 0.8em; }
+
+  #canvasWrapper {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    padding: 4px;
+    overflow: hidden;
+  }
+
+  #canvasWrapper canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* BOTTOM: tabs panel — takes remaining space */
+  .left {
+    order: 2;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Hide desktop title */
+  .left > h1,
+  .left > hr,
+  .left > br {
+    display: none;
+  }
+
+  /* Tab bar */
+  .mob-tabs {
+    display: flex;
+    flex-shrink: 0;
+    background: #1a1a1a;
+    border-bottom: 2px solid #333;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mob-tabs::-webkit-scrollbar { display: none; }
+
+  .mob-tab {
+    flex: 1;
+    min-width: 60px;
+    padding: 10px 6px;
+    text-align: center;
+    font-size: 0.7em;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mob-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: rgba(79,163,255,0.07);
+  }
+  .mob-tab-icon { font-size: 1.3em; display: block; margin-bottom: 2px; }
+
+  /* Carousel container */
+  .mob-carousel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .mob-panels {
+    display: flex;
+    height: 100%;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  .mob-panel {
+    flex: 0 0 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 12px 14px;
+    box-sizing: border-box;
+  }
+
+  /* Compact sections in mobile */
+  .mob-panel section {
+    margin-bottom: 12px;
+    padding: 12px;
+  }
+
+  .mob-panel h2 { font-size: 0.9em; }
+  .mob-panel label { font-size: 0.85em; }
+  .mob-panel input[type=range] { height: 28px; }
+  .mob-panel button { padding: 10px 16px; font-size: 0.85em; }
+  .mob-panel select { padding: 8px; font-size: 0.85em; }
+  .mob-panel input[type=number],
+  .mob-panel input[type=file] { padding: 8px; font-size: 0.85em; }
+
+  /* inline sections stack in mobile */
+  .mob-panel .inline-sections {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  /* Smooth control in mobile: single column */
+  .mob-panel .smooth-control {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* input group compact */
+  .mob-panel .input-group {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  /* Download section always visible on mobile */
+  #downloadSection {
+    display: block !important;
+  }
+
+  /* Zoom controls row */
+  .zoom-controls { flex-wrap: wrap; }
+
+  /* Desktop-only classes */
+  .desktop-only { display: none !important; }
+}
+
+/* Desktop: hide mobile elements */
+@media (min-width: 769px) {
+  .mob-tabs, .mob-carousel, .mob-panels, .mob-panel { display: none !important; }
+  .mob-desktop-content { display: contents; }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="layout">
+
+<div class="left">
+
+<h1>Vectorització de contorns</h1>
+<hr><br>
+
+<div class="inline-sections">
+    <section>
+        <div class="section-header">
+            <h2>1. Selecció de la imatge</h2>
+            <button class="help-icon-btn" data-help="help1" title="Ajuda">?</button>
+        </div>
+        <input type="file" id="imageInput" accept="image/*">
+    </section>
+
+    <section>
+        <div class="section-header">
+            <h2>2. Calibració</h2>
+            <button class="help-icon-btn" data-help="help2" title="Ajuda">?</button>
+        </div>
+        <div class="input-group">
+            <label for="calibDistance">Distància real (mm) entre dos punts:</label>
+            <input type="number" id="calibDistance" step="1" min="1" placeholder="En mm">   
+            <label id="calibStatus">0/2 punts seleccionats</label>
+        </div>
+    </section>
+</div>
+
+<section class="controls">
+    <div class="section-header">
+        <h2>3. Detecció del contorn</h2>
+        <button class="help-icon-btn" data-help="help3" title="Ajuda">?</button>
+    </div>
+    <label>Llindar de detecció: <span id="thresholdValue">183</span></label>
+    <input type="range" id="threshold" min="0" max="255" step="0.2" value="183">
+    <div style="display:flex;gap:10px;margin-top:10px;">
+        <button id="autoThresholdBtn" disabled>Auto</button>
+        <button id="editBtn" disabled>Editar</button>
+        <button id="restoreContourBtn" disabled>&#8630;</button>
+    </div>
+</section>
+
+<section class="controls">
+    <div class="section-header">
+        <h2>4. Modificació del contorn</h2>
+        <button class="help-icon-btn" data-help="help4" title="Ajuda">?</button>
+    </div>
+    <div class="smooth-control">
+        <div>
+            <label>Suavitzat: <span id="smoothValue">0</span></label>
+            <input type="range" id="smooth" min="0" max="10" step="0.01" value="0">
+        </div>
+        <div>
+            <label for="smoothMode">Mode:</label>
+            <select id="smoothMode">
+                <option value="normal">General</option>
+                <option value="edge">Arestes</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="smooth-control">
+        <div>
+            <label>Desplaçament: <span id="offsetValue">0.0</span> mm</label>
+            <input type="range" id="offset" min="0" max="20" step="0.5" value="0">
+        </div>
+    <div>
+        <button id="joinTypeBtn" type="button">Cantonades angulars</button>
+    </div>
+    </div>
+</section>
+
+<section id="downloadSection" style="display:none;">
+    <div class="section-header">
+        <h2>5. Exportació</h2>
+        <button class="help-icon-btn" data-help="help5" title="Ajuda">?</button>
+    </div>
+
+    <label>Format:</label>
+    <select id="formatSelect">
+        <option value="svg">SVG (Scalable Vector Graphics)</option>
+        <option value="dxf">DXF (AutoCAD)</option>
+        <option value="pdf">PDF Vectorial</option>
+    </select>
+
+    <label>Gruix de línia (mm):</label>
+    <input type="number" id="lineWidthInput" value="0.025" min="0.001" step="0.001">
+
+    <button id="downloadBtn" style="margin-top:15px;">Descarregar</button>
+</section>
+
+<!-- MOBILE CAROUSEL (sections moved here by JS on mobile) -->
+<nav class="mob-tabs" id="mobTabs" role="tablist">
+  <div class="mob-tab active" data-tab="0" role="tab">
+    <span class="mob-tab-icon">📷</span>Imatge
+  </div>
+  <div class="mob-tab" data-tab="1" role="tab">
+    <span class="mob-tab-icon">📐</span>Calibra
+  </div>
+  <div class="mob-tab" data-tab="2" role="tab">
+    <span class="mob-tab-icon">🔍</span>Contorn
+  </div>
+  <div class="mob-tab" data-tab="3" role="tab">
+    <span class="mob-tab-icon">✏️</span>Editar
+  </div>
+  <div class="mob-tab" data-tab="4" role="tab">
+    <span class="mob-tab-icon">💾</span>Exportar
+  </div>
+</nav>
+<div class="mob-carousel" id="mobCarousel">
+  <div class="mob-panels" id="mobPanels">
+    <div class="mob-panel" id="mobPanel0"></div>
+    <div class="mob-panel" id="mobPanel1"></div>
+    <div class="mob-panel" id="mobPanel2"></div>
+    <div class="mob-panel" id="mobPanel3"></div>
+    <div class="mob-panel" id="mobPanel4"></div>
+  </div>
+</div>
+
+</div>
+
+<div class="right">
+
+<div id="canvasContainer" class="canvas-box">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 10px 0 10px;">
+        <h4 style="margin: 0;" id="canvasTitle">Traçat vectorial sobre imatge original</h4>
+        <button id="toggleCanvasBtn" style="padding: 8px 16px;">Canviar vista</button>
+    </div>
+    <div class="zoom-controls" id="zoomControls" style="display:none; padding: 0 10px;">
+        <button id="zoomInBtn">+</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomOutBtn">−</button>
+        <button id="zoomResetBtn">Reset</button>
+    </div>
+    <div id="canvasWrapper" style="padding: 10px;">
+        <canvas id="overlayCanvas"></canvas>
+        <canvas id="vectorCanvas" style="display: none;"></canvas>
+    </div>
+</div>
+
+</div>
+
+</div>
+
+<div id="help1" class="help-overlay" role="dialog" aria-modal="true">
+    <div class="help-modal">
+        <button class="help-close-btn" title="Tancar">&#x2715;</button>
+        <h2>1. Selecció de la imatge</h2>
+        <ul>
+            <li>Fes clic al selector de fitxer i tria una fotografia del document o peça que vols retallar.</li>
+            <li>Carregar una imatge nova reinicia totes les opcions i paràmetres.</li>
+        </ul>
+    </div>
+</div>
+
+<div id="help2" class="help-overlay" role="dialog" aria-modal="true">
+    <div class="help-modal">
+        <button class="help-close-btn" title="Tancar">&#x2715;</button>
+        <h2>2. Calibració</h2>
+        <ul>
+            <li>Introdueix la distància real en mil&middot;límetres al camp de text, després fes clic sobre dos punts de la imatge dels quals coneguis aquella distància. Apareixerà una línia blava entre els punts i l&apos;escala es calcularà automàticament.</li>
+            <li>Un cop col&middot;locats els dos punts, pots arrossegar-los per ajustar-los.</li>
+            <li>La calibració és necessària per exportar el fitxer amb les mides reals correctes.</li>
+            <li>Mantenir premuda la tecla <kbd>Shift</kbd> en el moment de seleccionar el segón punt, força la línia de calibració a seguir l'eix horitzontal o vertical.</li>
+        </ul>
+    </div>
+</div>
+
+<div id="help3" class="help-overlay" role="dialog" aria-modal="true">
+    <div class="help-modal">
+        <button class="help-close-btn" title="Tancar">&#x2715;</button>
+        <h2>3. Detecció del contorn</h2>
+        <ul>
+            <li>El botó <strong>Auto</strong> calcula automàticament un llindar de detecció inicial basat en el contingut de la imatge.</li>
+            <li>Mou el <strong>llindar de detecció</strong> fins que el contorn s&apos;ajusti bé a la vora de la peça.</li>            
+            <li>Amb el botó <strong>Canviar vista</strong> pots alternar entre veure el contorn sobre la imatge original i veure&apos;l sol sobre fons negre.</li>
+        </ul>
+        <hr class="help-divider">
+        <h3>Edició del contorn</h3>
+        <ul>
+            <li>Fes clic al botó <strong>Editar</strong> per entrar en mode edició. El contorn es mostra amb els seus punts d'ancoratge.</li>
+            <li><strong>Modificació del contorn</strong> &mdash; Clica i arrossega els punts per ajustar la posició.</li>
+            <li><strong>Doble clic sobre el traç</strong> &mdash; Afegeix un nou punt al segment més proper al cursor.</li>
+            <li><strong>Clic dret sobre un punt</strong> &mdash; Elimina aquell punt del contorn.</li>
+            <li>Quan acabis, fes clic a <strong>Desa els canvis</strong> per aplicar l&apos;edició.</li>
+            <li>El botó <strong>&#8630;</strong> descarta qualsevol edició manual i torna al contorn detectat automàticament.</li>
+            <li><kbd>Roda del ratolí</kbd> &mdash; Zoom centrat en el cursor.</li>
+            <li>Mantenir premuda la tecla <kbd>Alt</kbd> permetrà desplaçar la vista quan la imatge estigui ampliada. També funciona amb el botó central del ratolí.</li>
+            <li>Els botons <strong>+</strong> / <strong>−</strong> i <strong>Reset</strong> de la barra de zoom controlen el zoom des del centre de la vista.</li>
+        </ul>
+        <hr class="help-divider">
+        <h3>Mode manual</h3>
+        <ul>
+            <li>Baixant el <strong>Llindar de detecció</strong> fins a <strong>0</strong>, es pot entrar en el mode <strong>Manual</strong> per crear un contorn des de zero.</li>
+            <li>Fes <strong>doble clic</strong> sobre la imatge per anar col·locant punts d'ancoratge un a un, en l'ordre desitjat.</li>
+            <li>Un cop col·locats els primers punts, pots <strong>arrossegar-los</strong> per ajustar la posició i continuar afegint-ne de nous amb doble clic sobre el traç existent.</li>
+            <li>Quan el contorn estigui llest, fes clic a <strong>Desa els canvis</strong>.</li>
+        </ul>
+    </div>
+</div>
+
+<div id="help4" class="help-overlay" role="dialog" aria-modal="true">
+    <div class="help-modal">
+        <button class="help-close-btn" title="Tancar">&#x2715;</button>
+        <h2>4. Modificació del contorn</h2>
+        <ul>
+            <li>El lliscador de <strong>suavitzat</strong> suavitza el contorn detectat. Hi ha dos modes seleccionables:
+                <ul>
+                    <li><strong>General</strong> &mdash; Suavitza tot el contorn de manera uniforme, arrodonint les arestes..</li>
+                    <li><strong>Arestes</strong> &mdash; Redueix les arestes pronunciades però preserva les cantonades.</li>
+                </ul>
+            </li>
+            <li>El lliscador de <strong>desplaçament</strong> expandeix el contorn cap enfora uns mil&middot;límetres, útil per afegir marge de tall.</li>
+            <li>El botó <strong>Cantonades angulars</strong> serveix per definir les cantones en documents amb les vores rectes.</li>
+        </ul>
+    </div>
+</div>
+
+<div id="help5" class="help-overlay" role="dialog" aria-modal="true">
+    <div class="help-modal">
+        <button class="help-close-btn" title="Tancar">&#x2715;</button>
+        <h2>5. Exportació</h2>
+        <ul>
+            <li>Tria el <strong>format</strong> de sortida: SVG (recomanat per a la majoria de programes de tall), DXF (per a programes CAD) o PDF vectorial.</li>
+            <li>Indica el <strong>gruix del traç</strong> en mil&middot;límetres.</li>
+            <li>Fes clic a <strong>Descarregar</strong> per obtenir el fitxer.</li>
+        </ul>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/js-clipper@1.0.1/clipper.min.js"></script>
+
+<script defer>
+let imageObj = null;
+let contourPath = null; 
+let initialDetectedContour = null; 
+
+let calibPoints = [];
+let scaleFactorMMPerPixel = 0;
+let calibMouse = null;
+
+let isDragging = false;
+let draggedPointIndex = -1; 
+let hoveredPointIndex = -1;
+const DRAG_THRESHOLD = 8; 
+const CONTOUR_DRAG_THRESHOLD = 8; 
+const VISUAL_LINE_WIDTH = 2; 
+let isEditMode = false; 
+let userEditedContour = null;
+let useMiterJoin = false;
+
+const DOM = {
+    imageInput: document.getElementById('imageInput'),
+    downloadBtn: document.getElementById('downloadBtn'),
+    downloadSection: document.getElementById('downloadSection'),
+    formatSelect: document.getElementById('formatSelect'),
+    calibDistanceInput: document.getElementById('calibDistance'),
+    calibStatus: document.getElementById('calibStatus'),
+    overlayCanvas: document.getElementById('overlayCanvas'),
+    vectorCanvas: document.getElementById('vectorCanvas'),
+    canvasContainer: document.getElementById('canvasContainer'),
+    thresholdSlider: document.getElementById('threshold'),
+    smoothSlider: document.getElementById('smooth'),
+    offsetSlider: document.getElementById('offset'),
+    joinTypeBtn: document.getElementById('joinTypeBtn'),
+    thresholdValue: document.getElementById('thresholdValue'),
+    smoothValue: document.getElementById('smoothValue'),
+    offsetValue: document.getElementById('offsetValue'),
+    loadingMsg: document.getElementById('loadingMsg'),
+    autoThresholdBtn: document.getElementById('autoThresholdBtn'),
+    smoothMode: document.getElementById('smoothMode'),
+    lineWidthInput: document.getElementById('lineWidthInput'),
+    editBtn: document.getElementById('editBtn'),
+    restoreContourBtn: document.getElementById('restoreContourBtn'),
+    toggleCanvasBtn: document.getElementById('toggleCanvasBtn'),
+    canvasTitle: document.getElementById('canvasTitle'),
+    canvasWrapper: document.getElementById('canvasWrapper'),
+    zoomControls: document.getElementById('zoomControls'),
+    zoomInBtn: document.getElementById('zoomInBtn'),
+    zoomOutBtn: document.getElementById('zoomOutBtn'),
+    zoomResetBtn: document.getElementById('zoomResetBtn'),
+    zoomLabel: document.getElementById('zoomLabel'),
+};    
+
+function toggleEditMode() {
+    const manualMode = isManualMode();
+    if (!manualMode && (!initialDetectedContour || initialDetectedContour.length === 0)) return;
+
+    isEditMode = !isEditMode;
+    const button = DOM.editBtn;
+    DOM.overlayCanvas.style.cursor = 'crosshair';
+
+    if (isEditMode) {
+        button.textContent = 'Desa els canvis';
+        button.classList.add('btn-desa');
+        if (manualMode && !initialDetectedContour) {
+            contourPath = userEditedContour ? [...userEditedContour] : [];
+        } else {
+            contourPath = userEditedContour ? [...userEditedContour] : [...initialDetectedContour];
+        }
+        drawVectorContour();
+        DOM.restoreContourBtn.disabled = false;
+
+        // Show zoom controls and reset zoom
+        editZoom = 1;
+        editPanX = 0;
+        editPanY = 0;
+        applyEditTransform();
+        DOM.zoomControls.style.display = 'flex';
+    } else {
+        button.textContent = isManualMode() ? 'Manual' : 'Editar';
+        button.classList.remove('btn-desa')
+        userEditedContour = [...contourPath];
+        hoveredPointIndex = -1;
+        processImage(false);
+        DOM.restoreContourBtn.disabled = (userEditedContour === null);
+
+        // Hide zoom controls and reset transform
+        DOM.zoomControls.style.display = 'none';
+        resetEditTransform();
+    }
+}
+
+function restoreInitialContour() {
+    if (!userEditedContour && !isEditMode) return;
+    
+    userEditedContour = null; 
+    
+    if (isEditMode) {
+        isEditMode = false;
+        DOM.editBtn.textContent = isManualMode() ? 'Manual' : 'Editar';
+        DOM.editBtn.classList.remove('btn-desa');
+    }
+
+    processImage(false);
+    
+    DOM.restoreContourBtn.disabled = true;
+    DOM.zoomControls.style.display = 'none';
+    resetEditTransform();
+}
+
+function resetAll() {
+    DOM.thresholdSlider.value = 183;
+    DOM.smoothSlider.value = 0;
+    DOM.offsetSlider.value = 0;
+    DOM.thresholdValue.textContent = 183;
+    DOM.smoothValue.textContent = 0;
+    DOM.offsetValue.textContent = '0.0';
+    DOM.smoothMode.value = 'normal';
+    useMiterJoin = false;
+    DOM.joinTypeBtn.classList.remove('btn-desa');
+    DOM.joinTypeBtn.style.borderColor = '#4fa3ff';
+    DOM.joinTypeBtn.style.color = '#4fa3ff';
+    DOM.lineWidthInput.value = 0.025;
+    DOM.calibDistanceInput.value = ''; 
+    DOM.canvasContainer.style.display = 'none';
+    DOM.downloadSection.style.display = 'none';
+    
+    const ctxOverlay = DOM.overlayCanvas.getContext('2d');
+    const ctxVector = DOM.vectorCanvas.getContext('2d');
+    
+    ctxOverlay.clearRect(0, 0, DOM.overlayCanvas.width, DOM.overlayCanvas.height);
+    ctxVector.clearRect(0, 0, DOM.vectorCanvas.width, DOM.vectorCanvas.height);
+    
+    DOM.overlayCanvas.width = 0;
+    DOM.overlayCanvas.height = 0;
+    DOM.vectorCanvas.width = 0;
+    DOM.vectorCanvas.height = 0;
+    
+    DOM.overlayCanvas.style.width = '';
+    DOM.overlayCanvas.style.height = '';
+    DOM.vectorCanvas.style.width = '';
+    DOM.vectorCanvas.style.height = '';
+
+    contourPath = null;
+    initialDetectedContour = null; 
+    userEditedContour = null; 
+    isEditMode = false; 
+    DOM.editBtn.textContent = 'Editar';
+    DOM.editBtn.disabled = true;
+    DOM.restoreContourBtn.disabled = true;
+    DOM.autoThresholdBtn.disabled = true;
+    
+    calibPoints = [];
+    scaleFactorMMPerPixel = 0;
+    calibMouse = null;
+    DOM.calibStatus.textContent = '0/2 punts seleccionats';
+
+    isDragging = false;
+    draggedPointIndex = -1;
+    hoveredPointIndex = -1;
+
+    showingOverlay = true;
+    DOM.overlayCanvas.style.display = 'block';
+    DOM.vectorCanvas.style.display = 'none';
+    DOM.canvasTitle.textContent = 'Traçat vectorial sobre imatge original';
+}
+
+function drawInitialOverlay() {
+    if (!imageObj) return;
+    DOM.canvasContainer.style.display = 'grid';
+    const ctxOverlay = DOM.overlayCanvas.getContext('2d');
+    ctxOverlay.clearRect(0, 0, DOM.overlayCanvas.width, DOM.overlayCanvas.height);
+    ctxOverlay.drawImage(imageObj, 0, 0, DOM.overlayCanvas.width, DOM.overlayCanvas.height);
+}
+
+function handleImageLoad(e) {
+    const file = e.target.files[0];
+    if (file) {
+        resetAll(); 
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            imageObj = new Image();
+            imageObj.onload = function() {
+                DOM.overlayCanvas.width = imageObj.width;
+                DOM.overlayCanvas.height = imageObj.height;
+                DOM.vectorCanvas.width = imageObj.width;
+                DOM.vectorCanvas.height = imageObj.height;
+                
+                drawInitialOverlay();
+                
+                DOM.autoThresholdBtn.disabled = false;
+                updateEditBtnForThreshold();
+            };
+            imageObj.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+
+function getScaledLineWidth(visualWidth) {
+    if (!imageObj || DOM.overlayCanvas.clientWidth === 0) return visualWidth;
+    
+    const scaleFactor = imageObj.width / DOM.overlayCanvas.clientWidth;
+    
+    return visualWidth * scaleFactor;
+}
+
+function getOriginalCoords(event) {
+    if (!imageObj) return { x: 0, y: 0 };
+    const rect = DOM.overlayCanvas.getBoundingClientRect();
+    const xCanvas = event.clientX - rect.left;
+    const yCanvas = event.clientY - rect.top;
+    
+    const scaleFactor = DOM.overlayCanvas.width / rect.width; 
+    
+    return { x: xCanvas * scaleFactor, y: yCanvas * scaleFactor };
+}
+
+function handleSliderInput(slider, valueDisplay, decimals = 0, recalculate = false) {
+    valueDisplay.textContent = parseFloat(slider.value).toFixed(decimals);
+    if (imageObj && (initialDetectedContour || userEditedContour)) {
+        processImage(recalculate); 
+    } else if (imageObj && recalculate) {
+        processImage(true);
+    }
+}
+
+function handleDownloadClick() {
+    if (!contourPath || contourPath.length === 0) {
+        alert('Es necessari primer processar la imatge');
+        return;
+    }
+    if (scaleFactorMMPerPixel === 0) { 
+        alert('Es requereix fer la calibració (pas 2) abans de descarregar.'); 
+        return; 
+    }
+
+    const format = DOM.formatSelect.value;
+    if (format === 'svg') downloadSVG();
+    else if (format === 'dxf') downloadDXF();
+    else if (format === 'pdf') downloadPDF();
+}
+
+function handleOverlayClick(event) {
+    if (!imageObj || isEditMode || isDragging) return; 
+
+    const distRealMM = parseFloat(DOM.calibDistanceInput.value);
+    if (isNaN(distRealMM) || distRealMM <= 0) {
+        alert('Introdueix una distància vàlida (en mm) abans de seleccionar els punts de calibració.');
+        return;
+    }
+
+    if (calibPoints.length < 2) {
+        let p = getOriginalCoords(event);
+
+        if (event.shiftKey && calibPoints.length === 1) {
+            const p0 = calibPoints[0];
+            const dx = Math.abs(p.x - p0.x);
+            const dy = Math.abs(p.y - p0.y);
+            if (dx > dy) {
+                p.y = p0.y;
+            } else {
+                p.x = p0.x;
+            }
+        }
+        
+        calibPoints.push(p);
+        drawCalibrationPoints();
+        DOM.calibStatus.textContent = `${calibPoints.length}/2 punts seleccionats`;
+
+        if (calibPoints.length === 2) {
+            calibMouse = null; 
+            calculateScaleFactor(true);
+        }
+    }
+}
+
+function handleMouseDown(event) {
+    if (!imageObj) return;
+
+    // Alt+click OR middle mouse button = pan in edit mode
+    if (isEditMode && (event.altKey || event.button === 1)) {
+        isPanning = true;
+        panStartX = event.clientX - editPanX;
+        panStartY = event.clientY - editPanY;
+        DOM.overlayCanvas.style.cursor = 'grabbing';
+        event.preventDefault();
+        return;
+    }
+
+    const pOriginal = getOriginalCoords(event);
+    const canvasScale = DOM.overlayCanvas.width / DOM.overlayCanvas.clientWidth; 
+    
+    if (!isEditMode && calibPoints.length === 2) { 
+        for (let i = 0; i < calibPoints.length; i++) {
+            const pCalib = calibPoints[i];
+            const dist = Math.hypot(pOriginal.x - pCalib.x, pOriginal.y - pCalib.y) / canvasScale; 
+            
+            if (dist < DRAG_THRESHOLD) {
+                isDragging = true;
+                draggedPointIndex = i;
+                calibMouse = null; 
+                event.preventDefault();
+                return;
+            }
+        }
+    }
+
+    if (isEditMode && contourPath && contourPath.length > 0) {
+        const effectiveScale = canvasScale / editZoom;
+        for (let i = 0; i < contourPath.length; i++) {
+            const pContour = contourPath[i];
+            const dist = Math.hypot(pOriginal.x - pContour.x, pOriginal.y - pContour.y) / effectiveScale;
+            
+            if (dist < CONTOUR_DRAG_THRESHOLD) { 
+                isDragging = true;
+                draggedPointIndex = i;
+                event.preventDefault();
+                return;
+            }
+        }
+    }
+}
+
+function handleDragMove(event) {
+    // Handle panning
+    if (isPanning && isEditMode) {
+        editPanX = event.clientX - panStartX;
+        editPanY = event.clientY - panStartY;
+        applyEditTransform();
+        return;
+    }
+
+    if (!isDragging || !imageObj) return;
+    
+    let { x: xOriginal, y: yOriginal } = getOriginalCoords(event); 
+
+    xOriginal = Math.max(0, Math.min(imageObj.width, xOriginal));
+    yOriginal = Math.max(0, Math.min(imageObj.height, yOriginal));
+
+    if (!isEditMode && calibPoints.length === 2) {
+        if (draggedPointIndex !== -1) { 
+            if (event.shiftKey) {
+                const otherIndex = 1 - draggedPointIndex;
+                const pOther = calibPoints[otherIndex];
+                const dx = Math.abs(xOriginal - pOther.x);
+                const dy = Math.abs(yOriginal - pOther.y);
+                if (dx > dy) {
+                    yOriginal = pOther.y;
+                } else {
+                    xOriginal = pOther.x;
+                }
+            }
+            calibPoints[draggedPointIndex] = { x: xOriginal, y: yOriginal };
+            drawCalibrationPoints();
+            calculateScaleFactor(false); 
+            if (initialDetectedContour || userEditedContour) { 
+                processImage(false); 
+            }
+        }
+    
+    } else if (isEditMode && contourPath && draggedPointIndex !== -1) {
+        contourPath[draggedPointIndex] = { x: xOriginal, y: yOriginal };
+        drawVectorContour(); 
+    }
+}
+
+function handleMouseUp() {
+    isDragging = false;
+    draggedPointIndex = -1;
+    if (isPanning) {
+        isPanning = false;
+        DOM.overlayCanvas.style.cursor = isEditMode ? 'crosshair' : 'default';
+    }
+}
+
+function handleOverlayMouseMove(event) {
+    if (!imageObj || isDragging) return;
+
+    let { x: xOriginal, y: yOriginal } = getOriginalCoords(event);
+
+    if (isEditMode && contourPath && contourPath.length > 0) {
+        const canvasScale = DOM.overlayCanvas.width / DOM.overlayCanvas.clientWidth;
+        const effectiveScale = canvasScale / editZoom;
+        let newHoveredIndex = -1;
+
+        for (let i = 0; i < contourPath.length; i++) {
+            const pContour = contourPath[i];
+            const dist = Math.hypot(xOriginal - pContour.x, yOriginal - pContour.y) / effectiveScale; 
+            
+            if (dist < DRAG_THRESHOLD) {
+                newHoveredIndex = i;
+                break;
+            }
+        }
+        
+        if (newHoveredIndex !== hoveredPointIndex) {
+            hoveredPointIndex = newHoveredIndex;
+            
+            drawVectorContour();
+        }
+        
+    } else if (!isEditMode) {
+        
+        if (calibPoints.length === 1) { 
+            let tempX = xOriginal, tempY = yOriginal;
+            if (event.shiftKey) {
+                const p0 = calibPoints[0];
+                const dx = Math.abs(tempX - p0.x);
+                const dy = Math.abs(tempY - p0.y);
+                if (dx > dy) {
+                    tempY = p0.y;
+                } else {
+                    tempX = p0.x;
+                }
+            }
+            calibMouse = { x: tempX, y: tempY };
+            drawCalibrationPoints();
+        } else {
+            calibMouse = null;
+            drawCalibrationPoints();
+        }
+    }
+}
+
+function handleOverlayMouseOut() {
+    if (isEditMode && hoveredPointIndex !== -1) {
+        hoveredPointIndex = -1;
+        drawVectorContour(); 
+    }
+}
+
+DOM.overlayCanvas.addEventListener('dblclick', (event) => {
+    if (!isEditMode || !contourPath) return;
+
+    const p = getOriginalCoords(event);
+    const canvasScale = DOM.overlayCanvas.width / DOM.overlayCanvas.clientWidth;
+
+    // Manual mode with no or few points: just append
+    if (contourPath.length < 2) {
+        contourPath.push(p);
+        drawVectorContour();
+        return;
+    }
+
+    let minDist = Infinity;
+    let insertIndex = contourPath.length;
+
+    for (let i = 0; i < contourPath.length; i++) {
+        const a = contourPath[i];
+        const b = contourPath[(i + 1) % contourPath.length];
+
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const length2 = dx*dx + dy*dy;
+        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2;
+        t = Math.max(0, Math.min(1, t));
+        const projX = a.x + t * dx;
+        const projY = a.y + t * dy;
+        const dist = Math.hypot(p.x - projX, p.y - projY) / canvasScale;
+
+        if (dist < minDist) {
+            minDist = dist;
+            insertIndex = i + 1;
+        }
+    }
+
+    contourPath.splice(insertIndex, 0, p);
+    drawVectorContour();
+});
+
+DOM.overlayCanvas.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    if (!isEditMode || !contourPath) return;
+
+    const p = getOriginalCoords(event);
+    const canvasScale = DOM.overlayCanvas.width / DOM.overlayCanvas.clientWidth;
+    const effectiveScale = canvasScale / editZoom;
+
+    for (let i = 0; i < contourPath.length; i++) {
+        const dist = Math.hypot(p.x - contourPath[i].x, p.y - contourPath[i].y) / effectiveScale;
+        if (dist < CONTOUR_DRAG_THRESHOLD) {
+            contourPath.splice(i, 1);
+            drawVectorContour();
+            break;
+        }
+    }
+});
+
+let showingOverlay = true;
+
+// Zoom / pan state (only active in edit mode)
+let editZoom = 1;
+let editPanX = 0;
+let editPanY = 0;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 10;
+
+function toggleCanvas() {
+    showingOverlay = !showingOverlay;
+    
+    if (showingOverlay) {
+        DOM.overlayCanvas.style.display = 'block';
+        DOM.vectorCanvas.style.display = 'none';
+        DOM.canvasTitle.textContent = 'Traçat vectorial sobre imatge original';
+    } else {
+        DOM.overlayCanvas.style.display = 'none';
+        DOM.vectorCanvas.style.display = 'block';
+        DOM.canvasTitle.textContent = 'Traçat vectorial';
+    }
+}
+
+function isManualMode() {
+    return parseInt(DOM.thresholdSlider.value) === 0;
+}
+
+function updateEditBtnForThreshold() {
+    if (!imageObj) return;
+    if (isManualMode()) {
+        DOM.editBtn.textContent = 'Manual';
+        DOM.editBtn.disabled = false;
+    } else {
+        // Restore normal label; only enable if there's a contour
+        if (!isEditMode) {
+            DOM.editBtn.textContent = 'Editar';
+            DOM.editBtn.disabled = !(contourPath && contourPath.length > 0);
+        }
+    }
+}
+
+function initListeners() {
+    DOM.imageInput.addEventListener('change', handleImageLoad);
+    DOM.autoThresholdBtn.addEventListener('click', handleAutoThreshold);
+    
+    DOM.thresholdSlider.addEventListener('input', () => {
+        handleSliderInput(DOM.thresholdSlider, DOM.thresholdValue, 0, true);
+        updateEditBtnForThreshold();
+    });
+    
+    DOM.smoothSlider.addEventListener('input', () => 
+        handleSliderInput(DOM.smoothSlider, DOM.smoothValue, 2, false)
+    );
+    
+    DOM.offsetSlider.addEventListener('input', () => 
+        handleSliderInput(DOM.offsetSlider, DOM.offsetValue, 1, false)
+    );
+    
+    DOM.downloadBtn.addEventListener('click', handleDownloadClick);
+    
+    DOM.overlayCanvas.addEventListener('click', handleOverlayClick); 
+    DOM.overlayCanvas.addEventListener('mousedown', handleMouseDown);
+    DOM.overlayCanvas.addEventListener('mousemove', handleDragMove); 
+    DOM.overlayCanvas.addEventListener('mousemove', handleOverlayMouseMove); 
+    DOM.overlayCanvas.addEventListener('mouseout', handleOverlayMouseOut); 
+    window.addEventListener('mouseup', handleMouseUp); 
+
+    DOM.toggleCanvasBtn.addEventListener('click', toggleCanvas);
+
+    DOM.smoothMode.addEventListener('change', function() {
+        DOM.smoothSlider.value = 0;
+        DOM.smoothValue.textContent = '0';
+        if (imageObj && (initialDetectedContour || userEditedContour)) processImage(false); 
+    });
+    
+    DOM.calibDistanceInput.addEventListener('input', function() {
+        if (calibPoints.length === 2) {
+            calculateScaleFactor(false);
+            if (initialDetectedContour || userEditedContour) processImage(false);
+        }
+    });
+
+    DOM.editBtn.addEventListener('click', toggleEditMode);
+    DOM.restoreContourBtn.addEventListener('click', restoreInitialContour); 
+
+    // Zoom controls
+    DOM.canvasWrapper.addEventListener('wheel', handleEditWheel, { passive: false });
+    // Prevent browser auto-scroll on middle mouse button
+    DOM.canvasWrapper.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+    DOM.zoomInBtn.addEventListener('click', () => {
+        if (!isEditMode) return;
+        const wrapper = DOM.canvasWrapper;
+        const cx = wrapper.clientWidth / 2;
+        const cy = wrapper.clientHeight / 2;
+        const newZoom = Math.min(MAX_ZOOM, editZoom * 1.25);
+        editPanX = cx - (cx - editPanX) * (newZoom / editZoom);
+        editPanY = cy - (cy - editPanY) * (newZoom / editZoom);
+        editZoom = newZoom;
+        applyEditTransform();
+    });
+    DOM.zoomOutBtn.addEventListener('click', () => {
+        if (!isEditMode) return;
+        const wrapper = DOM.canvasWrapper;
+        const cx = wrapper.clientWidth / 2;
+        const cy = wrapper.clientHeight / 2;
+        const newZoom = Math.max(MIN_ZOOM, editZoom / 1.25);
+        editPanX = cx - (cx - editPanX) * (newZoom / editZoom);
+        editPanY = cy - (cy - editPanY) * (newZoom / editZoom);
+        editZoom = newZoom;
+        applyEditTransform();
+    });
+    DOM.zoomResetBtn.addEventListener('click', () => {
+        if (!isEditMode) return;
+        editZoom = 1; editPanX = 0; editPanY = 0;
+        applyEditTransform();
+    });
+    DOM.joinTypeBtn.addEventListener('click', function() {
+    useMiterJoin = !useMiterJoin;
+    this.classList.toggle('btn-desa', useMiterJoin);
+    this.style.borderColor = useMiterJoin ? '#000000' : '#4fa3ff';
+    this.style.color = useMiterJoin ? '#000000' : '#4fa3ff';
+    if (imageObj && (initialDetectedContour || userEditedContour)) processImage(false);
+});
+}
+
+
+function drawCalibrationPoints() {
+    const ctxOverlay = DOM.overlayCanvas.getContext('2d');
+    drawInitialOverlay(); 
+
+    if (contourPath) {
+        const scaledLineWidth = getScaledLineWidth(VISUAL_LINE_WIDTH);
+        ctxOverlay.lineWidth = scaledLineWidth; 
+        drawPath(ctxOverlay, contourPath, 1, 1); 
+    }
+    
+    const scaledCalibLineWidth = getScaledLineWidth(2); 
+    if (calibPoints.length === 1 && calibMouse) {
+        ctxOverlay.save();
+        ctxOverlay.strokeStyle = 'blue';
+        ctxOverlay.lineWidth = scaledCalibLineWidth; 
+        ctxOverlay.beginPath();
+        ctxOverlay.moveTo(calibPoints[0].x, calibPoints[0].y);
+        ctxOverlay.lineTo(calibMouse.x, calibMouse.y);
+        ctxOverlay.stroke();
+        ctxOverlay.restore();
+    }
+    
+    const scaledCalibLineFinalWidth = getScaledLineWidth(2); 
+    if (calibPoints.length === 2) {
+        ctxOverlay.save();
+        ctxOverlay.strokeStyle = 'blue';
+        ctxOverlay.lineWidth = scaledCalibLineFinalWidth; 
+        ctxOverlay.beginPath();
+        ctxOverlay.moveTo(calibPoints[0].x, calibPoints[0].y);
+        ctxOverlay.lineTo(calibPoints[1].x, calibPoints[1].y);
+        ctxOverlay.stroke();
+        ctxOverlay.restore();
+    }
+
+    const scaledRadius = getScaledLineWidth(5); 
+    ctxOverlay.fillStyle = 'blue';
+    for (const p of calibPoints) {
+        ctxOverlay.beginPath();
+        ctxOverlay.arc(p.x, p.y, scaledRadius, 0, 2 * Math.PI); 
+        ctxOverlay.fill();
+    }
+}
+
+function calculateScaleFactor(showAlert = true) {
+    const distRealMM = parseFloat(DOM.calibDistanceInput.value);
+    
+    if (isNaN(distRealMM) || distRealMM <= 0) {
+        if(showAlert) alert('Introdueix una distància vàlida (en mm).');
+        scaleFactorMMPerPixel = 0;
+        return;
+    }
+
+    if (calibPoints.length < 2) {
+        scaleFactorMMPerPixel = 0;
+        return;
+    }
+
+    const p1 = calibPoints[0];
+    const p2 = calibPoints[1];
+
+    const dx = p2.x - p1.x; 
+    const dy = p2.y - p1.y;
+    const distPixels = Math.sqrt(dx * dx + dy * dy);
+
+    if (distPixels < 1) {
+        if(showAlert) alert('Els punts són massa a prop.');
+        scaleFactorMMPerPixel = 0;
+        calibPoints = []; 
+        DOM.calibStatus.textContent = '0/2 punts seleccionats';
+        drawCalibrationPoints();
+        return;
+    }
+
+    scaleFactorMMPerPixel = distRealMM / distPixels;
+    DOM.calibStatus.textContent = `Escala: ${scaleFactorMMPerPixel.toFixed(4)} mm/px`;
+    
+    if (showAlert && imageObj) {
+        DOM.loadingMsg.style.display = 'block';
+        setTimeout(() => {
+            processImage(true);
+            DOM.loadingMsg.style.display = 'none';
+        }, 50);
+    }
+}
+
+function drawVectorContour() {
+    if (!imageObj) return;
+
+    drawInitialOverlay(); 
+    
+    const ctxOverlay = DOM.overlayCanvas.getContext('2d');
+    const ctxVector = DOM.vectorCanvas.getContext('2d');
+    ctxVector.clearRect(0, 0, DOM.vectorCanvas.width, DOM.vectorCanvas.height);
+
+    if (contourPath && contourPath.length > 0) {
+        const scaledLineWidth = getScaledLineWidth(VISUAL_LINE_WIDTH); 
+        
+        ctxOverlay.strokeStyle = isEditMode ? 'red' : 'red'; 
+        ctxOverlay.lineWidth = scaledLineWidth; 
+        drawPath(ctxOverlay, contourPath, 1, 1);
+        
+        ctxVector.strokeStyle = 'red';
+        ctxVector.lineWidth = scaledLineWidth; 
+        drawPath(ctxVector, contourPath, 1, 1);
+        
+        drawCalibrationPoints();
+
+        if (isEditMode) {
+            const pointRadius = getScaledLineWidth(3); 
+            ctxOverlay.strokeStyle = 'black';
+            ctxOverlay.lineWidth = getScaledLineWidth(1); 
+            for (let i = 0; i < contourPath.length; i++) {
+                const p = contourPath[i];
+                
+                ctxOverlay.fillStyle = (i === hoveredPointIndex) ? 'cyan' : 'yellow'; 
+                
+                ctxOverlay.beginPath();
+                ctxOverlay.arc(p.x, p.y, pointRadius, 0, 2 * Math.PI); 
+                ctxOverlay.fill();
+                ctxOverlay.stroke();
+            }
+        }
+    }
+    if (contourPath && contourPath.length > 0) {
+        DOM.downloadSection.style.display = 'block';
+    }
+}
+
+function processImage(recalculateContour = true) {
+    if (!imageObj) return;
+
+    DOM.canvasContainer.style.display = 'grid';
+    
+    if (recalculateContour) { 
+        drawInitialOverlay(); 
+        const tempCanvas = document.createElement('canvas');
+        const ctxTemp = tempCanvas.getContext('2d');
+        tempCanvas.width = imageObj.width;
+        tempCanvas.height = imageObj.height;
+        ctxTemp.drawImage(imageObj, 0, 0, imageObj.width, imageObj.height);
+        let imageData = ctxTemp.getImageData(0, 0, imageObj.width, imageObj.height);
+        let data = imageData.data;
+        const threshold = parseInt(DOM.thresholdSlider.value);
+        let binary = new Array(imageObj.width * imageObj.height).fill(0);
+        for (let i = 0; i < data.length; i += 4) {
+            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            binary[i / 4] = (avg < threshold) ? 0 : 255;
+        }
+        
+        initialDetectedContour = detectContour(binary, imageObj.width, imageObj.height);
+        userEditedContour = null; 
+        DOM.restoreContourBtn.disabled = true;
+
+        // In manual mode (threshold=0), enable edit button even without detected contour
+        if (isManualMode()) {
+            DOM.editBtn.textContent = 'Manual';
+            DOM.editBtn.disabled = false;
+            if (!initialDetectedContour || initialDetectedContour.length === 0) return;
+        }
+    } 
+    
+    if (!initialDetectedContour && !isManualMode()) return;
+
+    if (!isEditMode) { 
+        let baseContour = userEditedContour ? [...userEditedContour] : [...initialDetectedContour];
+        
+        const smoothModeValue = DOM.smoothMode.value;
+        const smoothLevel = parseFloat(DOM.smoothSlider.value);
+        let filteredContour = baseContour;
+
+        if (smoothLevel > 0) {
+            if (smoothModeValue === 'edge') {
+                filteredContour = smoothContourEdgePreserving(baseContour, smoothLevel);
+            } else {
+                filteredContour = smoothContour(baseContour, smoothLevel);
+            }
+        }
+        
+        const offsetMM = parseFloat(DOM.offsetSlider.value);
+        
+        if (Math.abs(offsetMM) > 0.01) {
+            if (scaleFactorMMPerPixel === 0) {
+                console.warn('Calibració pendent. Offset no aplicat.');
+                contourPath = filteredContour; 
+            } else {
+                const offsetPixels = offsetMM / scaleFactorMMPerPixel;
+                const useMiter = useMiterJoin;
+                const joinType = useMiter
+                    ? ClipperLib.JoinType.jtMiter
+                    : ClipperLib.JoinType.jtRound;
+                const miterLimit = useMiter ? 10 : 1;
+                // Amb jtMiter, punts massa propers a una cantonada generen pics o truncats.
+                // Una pre-simplificació agressiva garanteix un únic vèrtex per cantonada real.
+                const contourForOffset = useMiter
+                    ? simplifyContour(filteredContour, offsetPixels * 0.5)
+                    : filteredContour;
+                let offsetResult = offsetContourClipper(contourForOffset, offsetPixels, joinType, miterLimit); 
+                
+                if (offsetResult && offsetResult.length > 0) {
+                    contourPath = offsetResult;
+                } else {
+                    console.warn("El contorn ha desaparegut a l'aplicar el offset. Revisa el valor o la cali");
+                }
+            }
+        } else {
+            contourPath = filteredContour;
+        }
+    } 
+
+    drawVectorContour();
+    
+    if (isManualMode()) {
+        DOM.editBtn.textContent = 'Manual';
+        DOM.editBtn.disabled = false;
+    } else if (contourPath && contourPath.length > 0) {
+        DOM.editBtn.disabled = false;
+    } else {
+        DOM.editBtn.disabled = true;
+    }
+}
+
+
+function drawPath(ctx, points, scaleX, scaleY) {
+    if (!points || points.length === 0) return;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x * scaleX, points[0].y * scaleY);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x * scaleX, points[i].y * scaleY);
+    }
+    ctx.closePath();
+    ctx.stroke();
+}
+
+function detectContour(binary, width, height) {
+    let startX = -1, startY = -1;
+    for (let y = 0; y < height && startY === -1; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            if (binary[idx] === 0) { 
+                if (x > 0 && binary[idx - 1] === 255) { 
+                    startX = x;
+                    startY = y;
+                    break;
+                }
+            }
+        }
+    }
+    if (startX === -1) return [];
+    const contour = [];
+    let x = startX, y = startY;
+    const directions = [[1, 0], [1, 1], [0, 1], [-1, 1],[-1, 0], [-1, -1], [0, -1], [1, -1]];
+    let currentDir = 6; 
+    let steps = 0;
+    const maxSteps = width * height; 
+    do {
+        contour.push({ x, y });
+        let found = false;
+        for (let i = 0; i < 8; i++) {
+            const dir = (currentDir + i) % 8; 
+            const nx = x + directions[dir][0];
+            const ny = y + directions[dir][1];
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                const idx = ny * width + nx;
+                if (binary[idx] === 0) { 
+                    let isBorder = false;
+                    for (let [dx, dy] of directions) {
+                        const checkX = nx + dx;
+                        const checkY = ny + dy;
+                        if (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
+                            const checkIdx = checkY * width + checkX;
+                            if (binary[checkIdx] === 255) {
+                                isBorder = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isBorder) {
+                        x = nx;
+                        y = ny;
+                        currentDir = (dir + 6) % 8; 
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!found) break; 
+        steps++;
+    } while ((x !== startX || y !== startY) && steps < maxSteps);
+    return simplifyContour(contour, 0.5); 
+}
+
+function simplifyContour(points, tolerance) {
+    if (!points || points.length < 3) return points;
+    const simplified = [points[0]];
+    for (let i = 1; i < points.length - 1; i++) {
+        const prev = simplified[simplified.length - 1];
+        const curr = points[i];
+        const next = points[i + 1];
+        const dist = pointToLineDistance(curr, prev, next);
+        if (dist >= tolerance) simplified.push(curr);
+    }
+    simplified.push(points[points.length - 1]);
+    return simplified;
+}
+
+function pointToLineDistance(point, lineStart, lineEnd) {
+    const dx = lineEnd.x - lineStart.x;
+    const dy = lineEnd.y - lineStart.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) { 
+        const pdx = point.x - lineStart.x;
+        const pdy = point.y - lineStart.y;
+        return Math.hypot(pdx, pdy);
+    }
+    const t = Math.max(0, Math.min(1, ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lenSq));
+    const projX = lineStart.x + t * dx;
+    const projY = lineStart.y + t * dy;
+    const pdx = point.x - projX;
+    const pdy = point.y - projY;
+    return Math.hypot(pdx, pdy);
+}
+
+function smoothContour(points, level) {
+    if (!points || points.length < 3 || level === 0) return points;
+    let smoothed = [...points];
+    const iterations = Math.floor(Math.pow(level, 1.5));
+    const weight = Math.min(0.5, level / 20); 
+    for (let iter = 0; iter < iterations; iter++) {
+        const newPoints = [];
+        for (let i = 0; i < smoothed.length; i++) {
+            const prev = smoothed[(i - 1 + smoothed.length) % smoothed.length];
+            const curr = smoothed[i];
+            const next = smoothed[(i + 1) % smoothed.length];
+            newPoints.push({
+                x: curr.x * (1 - weight) + (prev.x + next.x) * weight / 2,
+                y: curr.y * (1 - weight) + (prev.y + next.y) * weight / 2
+            });
+        }
+        smoothed = newPoints;
+    }
+    return smoothed;
+}
+
+function calculateOtsuThreshold() {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = imageObj.width;
+    tempCanvas.height = imageObj.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(imageObj, 0, 0);
+
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const data = imageData.data;
+    const numPixels = imageData.width * imageData.height;
+
+    const histogram = new Array(256).fill(0);
+    for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+        histogram[gray]++;
+    }
+
+    let total = 0;
+    for (let i = 0; i < 256; i++) {
+        total += i * histogram[i];
+    }
+
+    let sumB = 0;
+    let wB = 0;
+    let wF = 0;
+    let maxVar = 0;
+    let threshold = 0;
+
+    for (let i = 0; i < 256; i++) {
+        wB += histogram[i];
+        if (wB === 0) continue;
+
+        wF = numPixels - wB;
+        if (wF === 0) break;
+
+        sumB += i * histogram[i];
+
+        const mB = sumB / wB;
+        const mF = (total - sumB) / wF;
+
+        const varBetween = wB * wF * (mB - mF) * (mB - mF);
+
+        if (varBetween > maxVar) {
+            maxVar = varBetween;
+            threshold = i;
+        }
+    }
+
+    return threshold;
+}
+
+function offsetContourClipper(points, offset, joinType, miterLimit) {
+    if (!points || points.length < 3 || Math.abs(offset) < 0.001) return points;
+    if (typeof ClipperLib === 'undefined') return offsetContourFallback(points, offset, joinType, miterLimit);
+
+    try {
+        const scale = 100000;
+        const scaledPoints = points.map(p => ({ X: Math.round(p.x * scale), Y: Math.round(p.y * scale) }));
+        // arcTolerance escalat: 0.25px * scale dona precisió adequada per a corbes;
+        // per a jtMiter no s'usa, però cal que sigui coherent amb l'escala.
+        const arcTolerance = 0.25 * scale;
+        const co = new ClipperLib.ClipperOffset(miterLimit, arcTolerance);
+        co.AddPath(scaledPoints, joinType, ClipperLib.EndType.etClosedPolygon);
+        const solution = new ClipperLib.Paths();
+        co.Execute(solution, offset * scale);
+        
+        if (solution.length > 0) {
+            const resultPath = solution[0]; 
+            return resultPath.map(p => ({ x: p.X / scale, y: p.Y / scale }));
+        }
+    } catch (error) {
+        console.error('Clipper error (podria ser per un contorn massa petit o complexe):', error);
+        return []; 
+    }
+
+    return []; 
+}
+
+function offsetContourFallback(points, offset, joinType, miterLimit) {
+    if (!points || points.length < 3) return points;
+    const offsetPoints = [];
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+        const prev = points[(i - 1 + n) % n];
+        const curr = points[i];
+        const next = points[(i + 1) % n];
+        const v1 = normalize({ x: curr.x - prev.x, y: curr.y - prev.y });
+        const v2 = normalize({ x: next.x - curr.x, y: next.y - curr.y });
+        
+        const normal1 = { x: -v1.y, y: v1.x };
+        const normal2 = { x: -v2.y, y: v2.x };
+        let normal = normalize({ x: normal1.x + normal2.x, y: normal1.y + normal2.y });
+
+        const crossProduct = v1.x * v2.y - v1.y * v2.x;
+        if (crossProduct * offset < 0) { 
+            normal.x = -normal.x;
+            normal.y = -normal.y;
+        }
+
+        offsetPoints.push({ x: curr.x + normal.x * offset, y: curr.y + normal.y * offset });
+    }
+    return offsetPoints;
+}
+
+function normalize(v) {
+    const len = Math.hypot(v.x, v.y);
+    if (len < 0.0001) return { x: 0, y: 0 };
+    return { x: v.x / len, y: v.y / len };
+}
+
+// ── Zoom / Pan helpers ──────────────────────────────────────────────────────
+
+function applyEditTransform() {
+    const canvas = DOM.overlayCanvas.style.display !== 'none' ? DOM.overlayCanvas : DOM.vectorCanvas;
+    const transform = `translate(${editPanX}px, ${editPanY}px) scale(${editZoom})`;
+    DOM.overlayCanvas.style.transform = transform;
+    DOM.vectorCanvas.style.transform = transform;
+    DOM.overlayCanvas.style.transformOrigin = '0 0';
+    DOM.vectorCanvas.style.transformOrigin = '0 0';
+    if (DOM.zoomLabel) DOM.zoomLabel.textContent = Math.round(editZoom * 100) + '%';
+}
+
+function resetEditTransform() {
+    editZoom = 1; editPanX = 0; editPanY = 0;
+    DOM.overlayCanvas.style.transform = '';
+    DOM.vectorCanvas.style.transform = '';
+}
+
+function clampPan() {
+    const wrapper = DOM.canvasWrapper;
+    const wrapW = wrapper.clientWidth;
+    const wrapH = wrapper.clientHeight;
+    const imgW = (DOM.overlayCanvas.clientWidth || DOM.overlayCanvas.offsetWidth) * editZoom;
+    const imgH = (DOM.overlayCanvas.clientHeight || DOM.overlayCanvas.offsetHeight) * editZoom;
+    editPanX = Math.min(0, Math.max(editPanX, wrapW - imgW));
+    editPanY = Math.min(0, Math.max(editPanY, wrapH - imgH));
+}
+
+function handleEditWheel(event) {
+    if (!isEditMode) return;
+    event.preventDefault();
+
+    const wrapper = DOM.canvasWrapper;
+    const rect = wrapper.getBoundingClientRect();
+    // Mouse position relative to wrapper
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    const delta = event.deltaY < 0 ? 1.15 : (1 / 1.15);
+    const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, editZoom * delta));
+
+    // Zoom toward mouse position
+    editPanX = mouseX - (mouseX - editPanX) * (newZoom / editZoom);
+    editPanY = mouseY - (mouseY - editPanY) * (newZoom / editZoom);
+    editZoom = newZoom;
+
+    applyEditTransform();
+}
+
+function isCorner(pPrev, p, pNext, angleThreshold = 0.35) {
+    const v1 = { x: pPrev.x - p.x, y: pPrev.y - p.y };
+    const v2 = { x: pNext.x - p.x, y: pNext.y - p.y };
+    const mag1 = Math.hypot(v1.x,v1.y);
+    const mag2 = Math.hypot(v2.x,v2.y);
+    if (mag1 === 0 || mag2 === 0) return true; 
+    const dot = (v1.x*v2.x + v1.y*v2.y) / (mag1*mag2);
+    return dot < Math.cos(angleThreshold * Math.PI); 
+}
+
+function smoothContourEdgePreserving(points, level) {
+    const n = points.length;
+    let result = points.map(p => ({...p}));
+    const iterations = Math.floor(Math.pow(level, 1.5));
+    const weight = Math.min(0.5, level / 20); 
+
+    for (let iter = 0; iter < iterations; iter++) {
+        const newPoints = [];
+        for (let i = 0; i < n; i++) {
+            const prev = result[(i - 1 + n) % n];
+            const curr = result[i];
+            const next = result[(i + 1) % n];
+            if (!isCorner(prev, curr, next)) {
+                newPoints.push({
+                    x: curr.x * (1 - weight) + (prev.x + next.x) * weight / 2,
+                    y: curr.y * (1 - weight) + (prev.y + next.y) * weight / 2
+                });
+            } else {
+                newPoints.push({...curr}); 
+            }
+        }
+        result = newPoints;
+    }
+    return result;
+}
+
+function handleAutoThreshold() {
+    if (!imageObj) {
+        alert('Carrega una imatge primer.');
+        return;
+    }
+    const threshold = calculateOtsuThreshold();
+    DOM.thresholdSlider.value = threshold;
+    DOM.thresholdValue.textContent = threshold;
+    processImage(true); 
+}
+
+function getTimestampFilename(prefix = "traçat_") {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${prefix}${yyyy}${mm}${dd}_${hh}${min}`;
+}
+
+function downloadSVG() {
+    const filename = getTimestampFilename() + '.svg';
+    if (!contourPath || contourPath.length === 0) { alert('Per favor, processa primer la imatge'); return; }
+    if (scaleFactorMMPerPixel === 0) { alert('Per favor, realitza la calibració (pas 2) abans de descarregar.'); return; }
+    const scale = scaleFactorMMPerPixel; 
+    const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of contourPath) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+    }
+    const offsetX = minX, offsetY = minY;
+    const contourWidthMM = (maxX - minX) * scale;
+    const contourHeightMM = (maxY - minY) * scale;
+    let pathData = '';
+    for (let i = 0; i < contourPath.length; i++) {
+        const x = ((contourPath[i].x - offsetX) * scale).toFixed(3);
+        const y = ((contourPath[i].y - offsetY) * scale).toFixed(3);
+        pathData += (i === 0 ? 'M ' : 'L ') + x + ',' + y + ' ';
+    }
+    pathData += 'Z';
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg width="${contourWidthMM.toFixed(2)}mm" height="${contourHeightMM.toFixed(2)}mm" viewBox="0 0 ${contourWidthMM.toFixed(2)} ${contourHeightMM.toFixed(2)}" xmlns="http://www.w3.org/2000/svg">\n  <path d="${pathData}" fill="none" stroke="red" stroke-width="${lineWidth}" stroke-linecap="round" stroke-linejoin="round"/>\n</svg>`;
+    downloadFile(svg, filename, 'image/svg+xml');
+}
+
+function downloadDXF() {
+    const filename = getTimestampFilename() + '.dxf';
+    if (!contourPath || contourPath.length === 0) { alert('Per favor, processa primer la imatge'); return; }
+    if (scaleFactorMMPerPixel === 0) { alert('Per favor, realitza la calibració (pas 2) abans de descarregar.'); return; }
+    const scale = scaleFactorMMPerPixel;
+    const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
+
+    // DXF lineweight is in hundredths of mm, must be a standard value.
+    // Map to nearest standard DXF lineweight value.
+    const stdWeights = [0,5,9,13,15,18,20,25,30,35,40,50,53,60,70,80,90,100,106,120,140,158,200,211];
+    const lwCentiMM = Math.round(lineWidth * 100);
+    const lineWeightCentiMM = stdWeights.reduce((a, b) => Math.abs(b - lwCentiMM) < Math.abs(a - lwCentiMM) ? b : a);
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of contourPath) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+    }
+    const offsetX = minX, offsetY = minY;
+    const contourHeightMM = (maxY - minY) * scale;
+
+    // Build a proper DXF with TABLES section including LAYER definition
+    // so that Inkscape and other apps respect the lineweight.
+    const lines = [];
+
+    // HEADER
+    lines.push('0','SECTION','2','HEADER',
+        '9','$INSUNITS','70','4',        // 4 = mm
+        '9','$LWDISPLAY','290','1',      // display lineweights
+        '0','ENDSEC');
+
+    // TABLES
+    lines.push('0','SECTION','2','TABLES',
+        '0','TABLE','2','LTYPE','70','1',
+        '0','LTYPE','2','CONTINUOUS','70','0','3','Solid line','72','65','73','0','40','0.0',
+        '0','ENDTAB',
+        '0','TABLE','2','LAYER','70','1',
+        '0','LAYER',
+        '2','CONTORN',   // layer name
+        '70','0',        // flags
+        '62','1',        // colour index 1 = red
+        '6','CONTINUOUS',// linetype
+        '370', lineWeightCentiMM.toString(), // lineweight in hundredths of mm
+        '0','ENDTAB',
+        '0','ENDSEC');
+
+    // BLOCKS (required empty section)
+    lines.push('0','SECTION','2','BLOCKS','0','ENDSEC');
+
+    // ENTITIES
+    lines.push('0','SECTION','2','ENTITIES',
+        '0','LWPOLYLINE',
+        '8','CONTORN',           // layer
+        '62','1',                // colour red (redundant but explicit)
+        '370', lineWeightCentiMM.toString(), // lineweight on entity too
+        '90', contourPath.length.toString(),
+        '70','1');               // 1 = closed polyline
+
+    for (let i = 0; i < contourPath.length; i++) {
+        const x = ((contourPath[i].x - offsetX) * scale).toFixed(4);
+        const y = (contourHeightMM - ((contourPath[i].y - offsetY) * scale)).toFixed(4);
+        lines.push('10', x, '20', y);
+    }
+
+    lines.push('0','ENDSEC','0','EOF');
+
+    downloadFile(lines.join('\n'), filename, 'application/dxf');
+}
+
+function downloadPDF() {
+    const filename = getTimestampFilename() + '.pdf';
+    if (!contourPath || contourPath.length === 0) { alert('Per favor, processa primer la imatge'); return; }
+    if (scaleFactorMMPerPixel === 0) { alert('Per favor, realitza la calibració (pas 2) abans de descarregar.'); return; }
+    const scale = scaleFactorMMPerPixel; 
+    const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
+    const mmToPt = 72 / 25.4; // exact: 1 inch = 72pt = 25.4mm
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of contourPath) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+    }
+    const offsetX = minX, offsetY = minY;
+    const contourWidthMM  = (maxX - minX) * scale;
+    const contourHeightMM = (maxY - minY) * scale;
+    const pdfWidth  = (contourWidthMM  * mmToPt).toFixed(3);
+    const pdfHeight = (contourHeightMM * mmToPt).toFixed(3);
+    const pdfLineWidth = (lineWidth * mmToPt).toFixed(4); // line width in pt
+
+    const sx = (x) => ((x - offsetX) * scale * mmToPt).toFixed(3);
+    const sy = (y) => ((contourHeightMM - (y - offsetY) * scale) * mmToPt).toFixed(3);
+
+    // Content stream
+    let streamContent = '';
+    streamContent += `q\n`;            // save graphics state
+    streamContent += `/GS1 gs\n`;     // apply ExtGState (sets LW)
+    streamContent += `1 0 0 RG\n`;   // stroke colour: red
+    streamContent += `2 J\n`;        // round line caps
+    streamContent += `1 j\n`;        // round line joins
+    streamContent += `${sx(contourPath[0].x)} ${sy(contourPath[0].y)} m\n`;
+    for (let i = 1; i < contourPath.length; i++) {
+        streamContent += `${sx(contourPath[i].x)} ${sy(contourPath[i].y)} l\n`;
+    }
+    streamContent += `h\nS\n`;        // close + stroke only (no fill)
+    streamContent += `Q\n`;           // restore graphics state
+
+    // ExtGState object with explicit line width (LW in pt)
+    const obj5 = `5 0 obj\n<< /Type /ExtGState /LW ${pdfLineWidth} /LC 1 /LJ 1 >>\nendobj\n`;
+
+    // PDF objects
+    const obj1 = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
+    const obj2 = `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`;
+    const obj3 = `3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 ${pdfWidth} ${pdfHeight}]\n/Contents 4 0 R\n/Resources <<\n  /ProcSet [/PDF]\n  /ExtGState << /GS1 5 0 R >>\n>>\n>>\nendobj\n`;
+    const obj4 = `4 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}endstream\nendobj\n`;
+
+    // Compute real byte offsets
+    const header = `%PDF-1.4\n`;
+    const off1 = header.length;
+    const off2 = off1 + obj1.length;
+    const off3 = off2 + obj2.length;
+    const off4 = off3 + obj3.length;
+    const off5 = off4 + obj4.length;
+    const xrefOffset = off5 + obj5.length;
+
+    const fmt = (n) => n.toString().padStart(10, '0');
+    const xref = [
+        `xref`,`0 6`,
+        `0000000000 65535 f `,
+        `${fmt(off1)} 00000 n `,
+        `${fmt(off2)} 00000 n `,
+        `${fmt(off3)} 00000 n `,
+        `${fmt(off4)} 00000 n `,
+        `${fmt(off5)} 00000 n `,``
+    ].join('\n');
+    const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+    downloadFile(header + obj1 + obj2 + obj3 + obj4 + obj5 + xref + trailer, filename, 'application/pdf');
+}
+
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ===== TOUCH SUPPORT FOR CANVAS (mobile) =====
+(function() {
+  function getTouchCoords(touchEvent) {
+    const touch = touchEvent.changedTouches[0];
+    return { clientX: touch.clientX, clientY: touch.clientY, shiftKey: false, button: 0 };
+  }
+
+  const canvas = document.getElementById('overlayCanvas');
+  if (!canvas) return;
+
+  canvas.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 1) {
+      e.preventDefault();
+      const mock = getTouchCoords(e);
+      canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: mock.clientX, clientY: mock.clientY, bubbles: true }));
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 1) {
+      e.preventDefault();
+      const t = e.touches[0];
+      canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY, bubbles: true }));
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    const mock = getTouchCoords(e);
+    canvas.dispatchEvent(new MouseEvent('mouseup', { clientX: mock.clientX, clientY: mock.clientY, bubbles: true }));
+    // Simulate click for calibration
+    canvas.dispatchEvent(new MouseEvent('click', { clientX: mock.clientX, clientY: mock.clientY, bubbles: true }));
+  }, { passive: false });
+})();
+
+// ===== MOBILE REORGANIZATION & TAB LOGIC =====
+(function() {
+  const isMobile = () => window.innerWidth <= 768;
+
+  // Sections to distribute across tabs (by original HTML order in .left)
+  // Tab 0: Selecció (inline-sections div containing steps 1+2)
+  // Tab 1: Calibració (already inside inline-sections, we split)
+  // Tab 2: Detecció del contorn (section.controls #1)
+  // Tab 3: Modificació del contorn (section.controls #2)
+  // Tab 4: Exportació (#downloadSection)
+
+  function setupMobile() {
+    if (!isMobile()) return;
+
+    const left = document.querySelector('.left');
+    const panels = [0,1,2,3,4].map(i => document.getElementById('mobPanel' + i));
+
+    // Grab all direct section children (and the inline-sections div)
+    const inlineSections = left.querySelector('.inline-sections');
+    const controlSections = left.querySelectorAll('section.controls');
+    const downloadSection = document.getElementById('downloadSection');
+
+    // Panel 0: image selection (first section inside inline-sections)
+    if (inlineSections) {
+      const secs = inlineSections.querySelectorAll('section');
+      if (secs[0]) panels[0].appendChild(secs[0]);
+      // Panel 1: calibration (second section)
+      if (secs[1]) panels[1].appendChild(secs[1]);
+      // Remove now-empty inline-sections wrapper
+      if (inlineSections.children.length === 0) inlineSections.remove();
+    }
+
+    // Panel 2: contour detection
+    if (controlSections[0]) panels[2].appendChild(controlSections[0]);
+    // Panel 3: contour modification
+    if (controlSections[1]) panels[3].appendChild(controlSections[1]);
+    // Panel 4: export
+    if (downloadSection) {
+      downloadSection.style.display = 'block';
+      panels[4].appendChild(downloadSection);
+    }
+  }
+
+  function activateTab(idx) {
+    const tabs = document.querySelectorAll('.mob-tab');
+    const panelsEl = document.getElementById('mobPanels');
+    tabs.forEach((t, i) => t.classList.toggle('active', i === idx));
+    panelsEl.style.transform = `translateX(-${idx * 100}%)`;
+  }
+
+  // Swipe support
+  let touchStartX = 0, touchStartY = 0, currentTab = 0;
+  function setupSwipe() {
+    const carousel = document.getElementById('mobCarousel');
+    if (!carousel) return;
+    carousel.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    carousel.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+        const tabs = document.querySelectorAll('.mob-tab');
+        const total = tabs.length;
+        if (dx < 0 && currentTab < total - 1) currentTab++;
+        else if (dx > 0 && currentTab > 0) currentTab--;
+        activateTab(currentTab);
+      }
+    }, { passive: true });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    if (!isMobile()) return;
+    setupMobile();
+    setupSwipe();
+
+    document.querySelectorAll('.mob-tab').forEach((tab, i) => {
+      tab.addEventListener('click', () => {
+        currentTab = i;
+        activateTab(i);
+      });
+    });
+  });
+})();
+
+initListeners();
+
+// Ajuda contextual per seccions
+(function() {
+    function closeAll() {
+        document.querySelectorAll('.help-overlay').forEach(o => o.classList.remove('visible'));
+    }
+
+    document.querySelectorAll('.help-icon-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const targetId = this.dataset.help;
+            const overlay = document.getElementById(targetId);
+            if (!overlay) return;
+            const isVisible = overlay.classList.contains('visible');
+            closeAll();
+            if (!isVisible) overlay.classList.add('visible');
+        });
+    });
+
+    document.querySelectorAll('.help-close-btn').forEach(btn => {
+        btn.addEventListener('click', closeAll);
+    });
+
+    document.querySelectorAll('.help-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeAll();
+        });
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeAll();
+    });
+})();
+</script>
+
+</body>
+</html>

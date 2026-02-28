@@ -2130,13 +2130,13 @@ initListeners();
         <label>Tipus</label>
         <div class="report-type-grid">
             <button class="report-type-btn" data-tipus="bug">
-                <span class="type-icon">🐛</span> Error / Bug
+                <span class="type-icon">❌</span> Error
             </button>
             <button class="report-type-btn" data-tipus="millora">
                 <span class="type-icon">💡</span> Millora
             </button>
             <button class="report-type-btn" data-tipus="pregunta">
-                <span class="type-icon">❓</span> Pregunta
+                <span class="type-icon">❔</span> Dubte
             </button>
         </div>
 
@@ -2233,7 +2233,7 @@ initListeners();
             const data = await res.json();
 
             if (res.ok && data.ok) {
-                feedback.textContent = '✅ Reporte enviat correctament. Gràcies!';
+                feedback.textContent = '✅ Comentari enviat correctament.';
                 feedback.className = 'ok';
                 submitBtn.textContent = 'Enviat ✓';
                 setTimeout(closeModal, 2200);

@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
 <title>Vectorització de contorns</title>
 
 <style>
@@ -20,7 +23,7 @@
 
 body{
     margin:0;
-    font-family:Arial, sans-serif;
+    font-family:"Montserrat", sans-serif;
     background:var(--bg);
     color:var(--text);
 }
@@ -68,9 +71,22 @@ section{
   margin-bottom: 15px; 
 }
 
-h1,h2,h3,h4{
+h2,h3,h4{
     margin-top:0;
     color:var(--text);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
+    font-optical-sizing: auto;
+    font-style: normal;
+    font-size: 1.5em;
+}
+
+h1 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
+    font-optical-sizing: auto;
+    font-style: normal;
+    letter-spacing: 0.06em;
 }
 
 label{
@@ -105,7 +121,15 @@ select{
     background-color: #f1e974;
     color: #000000;
     border-color: #000000;
-}   
+}
+
+#smoothMode {
+    font-size: 15px;
+}
+
+#smoothMode option {
+    font-size: 15px;
+}
 
 input[type=range]{width:100%;}
 
@@ -176,6 +200,46 @@ canvas{
     height:auto;
     background:#000;
     border-radius:var(--radius);
+}
+
+.img-upload-area {
+    border: 2px dashed #444;
+    border-radius: 8px;
+    background: #1c1c1c;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+}
+.img-upload-area:hover,
+.img-upload-area.drag-over {
+    border-color: #4fa3ff;
+    background: #1a2535;
+}
+.img-upload-area input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+.img-upload-text {
+    font-size: 0.82em;
+    color: #777;
+    pointer-events: none;
+}
+.img-upload-text span {
+    color: #4fa3ff;
+    font-weight: 600;
+}
+.img-upload-filename {
+    font-size: 0.82em;
+    color: #4fa3ff;
+    font-weight: 600;
+    pointer-events: none;
+    word-break: break-all;
 }
 
 ::-webkit-scrollbar {
@@ -282,7 +346,7 @@ canvas{
     justify-content: space-between;
     margin-bottom: 10px;
 }
-.section-header h2 { margin: 0; }
+.section-header h2 { margin: 0 0 12px 0; }
 .help-icon-btn {
     width: 22px;
     height: 22px;
@@ -319,7 +383,7 @@ canvas{
     background: var(--panel);
     border-radius: 14px;
     padding: 28px 32px;
-    max-width: 520px;
+    max-width: 700px;
     width: 90%;
     box-shadow: 0 8px 32px rgba(0,0,0,0.6);
     position: relative;
@@ -327,9 +391,9 @@ canvas{
     max-height: 85vh;
     overflow-y: auto;
 }
-.help-modal h2 { color: var(--primary); margin-bottom: 14px; font-size: 1.15em; }
-.help-modal h3 { color: var(--secondary); margin: 18px 0 8px 0; font-size: 0.95em; letter-spacing: 0.07em; margin-bottom: 14px }
-.help-modal p, .help-modal li { color: var(--text-muted); line-height: 1.6; font-size: 0.93em; }
+.help-modal h2 { color: var(--primary); margin-bottom: 18px; font-size: 1.3em; }
+.help-modal h3 { color: var(--secondary); margin: 14px 0 8px 0; font-size: 1.2em; letter-spacing: 0.07em; margin-bottom: 14px }
+.help-modal p, .help-modal li { color: var(--text-muted); line-height: 1.6; font-size: 1em; }
 .help-modal ul { padding-left: 18px; margin: 0 0 8px 0; }
 .help-modal li { margin-bottom: 6px; }
 .help-modal kbd { display: inline-block; background: #333; border: 1px solid #555; border-radius: 5px; padding: 1px 7px; font-size: 0.88em; color: var(--text); font-family: monospace; margin: 0 2px; }
@@ -349,7 +413,7 @@ canvas{
 
 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
     <img src="logo.png" alt="Logo" style="height: 60px; width: auto;">
-    <h1 style="margin: 0;">Vectorització de contorns</h1>
+    <h1 style="margin: 0;">VECTORITZACIÓ DE CONTORNS</h1>
 </div>
 <br>
 
@@ -359,7 +423,12 @@ canvas{
             <h2>1. Selecció de la imatge</h2>
             <button class="help-icon-btn" data-help="help1" title="Ajuda">?</button>
         </div>
-        <input type="file" id="imageInput" accept="image/*">
+        <div class="img-upload-area" id="imageUploadArea">
+            <input type="file" id="imageInput" accept="image/*">
+            <div class="img-upload-text" id="imageUploadText">
+                Arrossega una imatge aquí o <span>fes clic per seleccionar</span>
+            </div>
+        </div>
     </section>
 
     <section>
@@ -382,6 +451,8 @@ canvas{
     </div>
     <label>Llindar de detecció: <span id="thresholdValue">183</span></label>
     <input type="range" id="threshold" min="0" max="255" step="0.2" value="183">
+    <label style="margin-top:10px;">Simplificació de punts</label>
+    <input type="range" id="simplify" min="0.5" max="20" step="0.5" value="2">
     <div style="display:flex;gap:10px;margin-top:10px;">
         <button id="autoThresholdBtn" disabled>Auto</button>
         <button id="editBtn" disabled>Editar</button>
@@ -442,16 +513,13 @@ canvas{
 
 <div class="right">
 
-<div id="canvasContainer" class="canvas-box">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 10px 0 10px;">
-        <h4 style="margin: 0;" id="canvasTitle">Traçat vectorial sobre imatge original</h4>
-        <button id="toggleCanvasBtn" style="padding: 8px 16px;">Canviar vista</button>
-    </div>
-    <div class="zoom-controls" id="zoomControls" style="display:flex; padding: 0 10px; margin-bottom: 15px;">
+<div id="canvasContainer" class="canvas-box";">
+    <div class="zoom-controls" id="zoomControls" style="display:flex; padding: 10px 10px 15px 10px; margin-bottom: 0;">
         <button id="zoomInBtn">+</button>
         <span id="zoomLabel">100%</span>
         <button id="zoomOutBtn">−</button>
         <button id="zoomResetBtn">Reset</button>
+        <button id="toggleCanvasBtn" style="padding: 4px 12px; font-size: 13px; margin-left: auto;">Canviar vista</button>
     </div>
     <div id="canvasWrapper" style="padding: 10px;">
         <canvas id="overlayCanvas"></canvas>
@@ -493,7 +561,8 @@ canvas{
         <h2>3. Detecció del contorn</h2>
         <ul>
             <li>El botó <strong>Auto</strong> calcula automàticament un llindar de detecció inicial basat en el contingut de la imatge.</li>
-            <li>Mou el <strong>llindar de detecció</strong> fins que el contorn s&apos;ajusti bé a la vora de la peça.</li>            
+            <li>Mou el <strong>llindar de detecció</strong> fins que el contorn s&apos;ajusti bé a la vora de la peça.</li>
+            <li><strong>Simplificació de punts</strong> redueix el nombre de punts d&apos;ancoratge. Valors més alts generen contorns més simples; valors baixos conserven més detall.</li>
             <li>Amb el botó <strong>Canviar vista</strong> pots alternar entre veure el contorn sobre la imatge original i veure&apos;l sol sobre fons negre.</li>
         </ul>
         <hr class="help-divider">
@@ -554,7 +623,8 @@ canvas{
 <script defer>
 let imageObj = null;
 let contourPath = null; 
-let initialDetectedContour = null; 
+let initialDetectedContour = null;
+let rawDetectedContour = null;
 
 let calibPoints = [];
 let scaleFactorMMPerPixel = 0;
@@ -581,6 +651,7 @@ const DOM = {
     vectorCanvas: document.getElementById('vectorCanvas'),
     canvasContainer: document.getElementById('canvasContainer'),
     thresholdSlider: document.getElementById('threshold'),
+    simplifySlider: document.getElementById('simplify'),
     smoothSlider: document.getElementById('smooth'),
     offsetSlider: document.getElementById('offset'),
     joinTypeBtn: document.getElementById('joinTypeBtn'),
@@ -594,7 +665,6 @@ const DOM = {
     editBtn: document.getElementById('editBtn'),
     restoreContourBtn: document.getElementById('restoreContourBtn'),
     toggleCanvasBtn: document.getElementById('toggleCanvasBtn'),
-    canvasTitle: document.getElementById('canvasTitle'),
     canvasWrapper: document.getElementById('canvasWrapper'),
     zoomControls: document.getElementById('zoomControls'),
     zoomInBtn: document.getElementById('zoomInBtn'),
@@ -689,7 +759,8 @@ function resetAll() {
     DOM.vectorCanvas.style.height = '';
 
     contourPath = null;
-    initialDetectedContour = null; 
+    initialDetectedContour = null;
+    rawDetectedContour = null;
     userEditedContour = null; 
     isEditMode = false; 
     DOM.editBtn.textContent = 'Editar';
@@ -709,7 +780,6 @@ function resetAll() {
     showingOverlay = true;
     DOM.overlayCanvas.style.display = 'block';
     DOM.vectorCanvas.style.display = 'none';
-    DOM.canvasTitle.textContent = 'Traçat vectorial sobre imatge original';
 }
 
 function drawInitialOverlay() {
@@ -1048,11 +1118,9 @@ function toggleCanvas() {
     if (showingOverlay) {
         DOM.overlayCanvas.style.display = 'block';
         DOM.vectorCanvas.style.display = 'none';
-        DOM.canvasTitle.textContent = 'Traçat vectorial sobre imatge original';
     } else {
         DOM.overlayCanvas.style.display = 'none';
         DOM.vectorCanvas.style.display = 'block';
-        DOM.canvasTitle.textContent = 'Traçat vectorial';
     }
 }
 
@@ -1074,13 +1142,57 @@ function updateEditBtnForThreshold() {
     }
 }
 
+function initImageUploadArea() {
+    const uploadArea = document.getElementById('imageUploadArea');
+    const uploadText = document.getElementById('imageUploadText');
+
+    function updateUploadLabel(file) {
+        if (file) {
+            uploadText.innerHTML = `<span class="img-upload-filename">📄 ${file.name}</span>`;
+        } else {
+            uploadText.innerHTML = 'Arrossega una imatge aquí o <span>fes clic per seleccionar</span>';
+        }
+    }
+
+    DOM.imageInput.addEventListener('change', () => {
+        updateUploadLabel(DOM.imageInput.files[0] || null);
+    });
+
+    uploadArea.addEventListener('dragover', e => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+    uploadArea.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            DOM.imageInput.files = dt.files;
+            DOM.imageInput.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
 function initListeners() {
+    initImageUploadArea();
     DOM.imageInput.addEventListener('change', handleImageLoad);
     DOM.autoThresholdBtn.addEventListener('click', handleAutoThreshold);
     
     DOM.thresholdSlider.addEventListener('input', () => {
         handleSliderInput(DOM.thresholdSlider, DOM.thresholdValue, 0, true);
         updateEditBtnForThreshold();
+    });
+
+    DOM.simplifySlider.addEventListener('input', () => {
+        if (rawDetectedContour) {
+            const tol = parseFloat(DOM.simplifySlider.value) || 2;
+            initialDetectedContour = simplifyContour(rawDetectedContour, tol);
+            userEditedContour = null;
+            processImage(false);
+        }
     });
     
     DOM.smoothSlider.addEventListener('input', () => 
@@ -1346,7 +1458,9 @@ function processImage(recalculateContour = true) {
             binary[i] = isObject ? 0 : 255;
         }
         
-        initialDetectedContour = detectContour(binary, imageObj.width, imageObj.height);
+        rawDetectedContour = detectContour(binary, imageObj.width, imageObj.height);
+        const tol = parseFloat(DOM.simplifySlider.value) || 2;
+        initialDetectedContour = simplifyContour(rawDetectedContour, tol);
         userEditedContour = null; 
         DOM.restoreContourBtn.disabled = true;
 
@@ -1485,21 +1599,30 @@ function detectContour(binary, width, height) {
         if (!found) break; 
         steps++;
     } while ((x !== startX || y !== startY) && steps < maxSteps);
-    return simplifyContour(contour, 0.5); 
+    return contour;
 }
 
 function simplifyContour(points, tolerance) {
     if (!points || points.length < 3) return points;
-    const simplified = [points[0]];
+    return rdp(points, tolerance);
+}
+
+function rdp(points, epsilon) {
+    if (points.length < 3) return points;
+    let maxDist = 0;
+    let maxIdx = 0;
+    const first = points[0];
+    const last = points[points.length - 1];
     for (let i = 1; i < points.length - 1; i++) {
-        const prev = simplified[simplified.length - 1];
-        const curr = points[i];
-        const next = points[i + 1];
-        const dist = pointToLineDistance(curr, prev, next);
-        if (dist >= tolerance) simplified.push(curr);
+        const d = pointToLineDistance(points[i], first, last);
+        if (d > maxDist) { maxDist = d; maxIdx = i; }
     }
-    simplified.push(points[points.length - 1]);
-    return simplified;
+    if (maxDist > epsilon) {
+        const left  = rdp(points.slice(0, maxIdx + 1), epsilon);
+        const right = rdp(points.slice(maxIdx), epsilon);
+        return left.slice(0, -1).concat(right);
+    }
+    return [first, last];
 }
 
 function pointToLineDistance(point, lineStart, lineEnd) {
@@ -2034,6 +2157,7 @@ initListeners();
     position: relative;
     color: #f2f2f2;
     animation: reportSlideIn 0.22s cubic-bezier(.4,0,.2,1);
+    font-family: 'Montserrat', sans-serif;
 }
 @keyframes reportSlideIn {
     from { opacity: 0; transform: translateY(18px) scale(0.98); }
@@ -2042,11 +2166,13 @@ initListeners();
 
 #reportModal h2 {
     margin: 0 0 18px 0;
-    font-size: 1.15em;
+    font-size: 1.3em;
     color: #4fa3ff;
     display: flex;
     align-items: center;
     gap: 8px;
+    font-weight: 400;
+    letter-spacing: 0.07em;
 }
 
 .report-close {
@@ -2097,8 +2223,9 @@ initListeners();
 #reportModal label {
     display: block;
     color: #b9b9b9;
-    font-size: 0.85em;
+    font-size: 1em;
     margin-bottom: 5px;
+    font-weight: 400;
 }
 
 #reportModal input[type=text],
@@ -2109,11 +2236,11 @@ initListeners();
     border-radius: 8px;
     color: #f2f2f2;
     padding: 9px 12px;
-    font-size: 0.9em;
+    font-size: 1em;
     box-sizing: border-box;
     resize: vertical;
     transition: border-color 0.15s;
-    font-family: inherit;
+    font-family: 'Montserrat', sans-serif;
     margin-bottom: 14px;
 }
 #reportModal input[type=text]:focus,
@@ -2262,7 +2389,7 @@ initListeners();
         <textarea id="reportDescripcio" maxlength="5000" placeholder="Explica amb detall: què passa, com reproduir-ho, què esperaves..."></textarea>
         <div class="report-char-counter"><span id="reportCharCount">0</span> / 5000</div>
 
-        <label>Captura de pantalla <span style="color:#666">(opcional · JPG, PNG, GIF, WEBP · màx. 30 MB)</span></label>
+        <label>Imatge <span style="color:#666">(opcional · JPG, PNG, GIF, WEBP · màx. 30 MB)</span></label>
         <div id="reportImagePreview">
             <img id="reportPreviewImg" src="" alt="previsualització">
             <button id="reportRemoveImg" title="Eliminar imatge">&#x2715;</button>

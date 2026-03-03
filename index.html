@@ -1148,7 +1148,7 @@ function initImageUploadArea() {
 
     function updateUploadLabel(file) {
         if (file) {
-            uploadText.innerHTML = `<span class="img-upload-filename">📄 ${file.name}</span>`;
+            uploadText.innerHTML = `<span class="img-upload-filename">${file.name}</span>`;
         } else {
             uploadText.innerHTML = 'Arrossega una imatge aquí o <span>fes clic per seleccionar</span>';
         }

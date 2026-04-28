@@ -402,10 +402,100 @@ canvas{
 .help-close-btn::before { display: none; }
 .help-divider { border: none; border-top: 1px solid #333; margin: 16px 0; }
 
+/* Contour selection panel */
+#contourSelectionPanel {
+    display: none;
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 240px;
+    background: var(--panel);
+    border-left: 2px solid #444;
+    z-index: 1500;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+    flex-direction: column;
+    overflow: hidden;
+}
+#contourSelectionPanel.visible { display: flex; }
+#contourSelectionPanel .csp-header {
+    padding: 14px 16px 10px 16px;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+#contourSelectionPanel .csp-header h3 {
+    margin: 0 0 4px 0;
+    font-size: 1em;
+    color: var(--primary);
+}
+#contourSelectionPanel .csp-header p {
+    margin: 0;
+    font-size: 0.78em;
+    color: var(--text-muted);
+}
+#contourSelectionPanel .csp-close {
+    position: absolute;
+    top: 10px; right: 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0; line-height: 1;
+}
+#contourSelectionPanel .csp-close::before { display: none; }
+#contourSelectionPanel .csp-close:hover { color: var(--text); }
+#cspList {
+    overflow-y: auto;
+    flex: 1;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.csp-item {
+    background: var(--surface);
+    border: 2px solid #444;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.csp-item:hover { border-color: var(--primary); background: #1a2535; }
+.csp-item.selected { border-color: #4caf82; background: #1a2b22; }
+.csp-swatch {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+.csp-info { font-size: 0.8em; color: var(--text-muted); line-height: 1.4; }
+.csp-info strong { color: var(--text); font-size: 0.95em; }
+#cspConfirmBtn {
+    margin: 10px;
+    width: calc(100% - 20px);
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
 </style>
 </head>
 
 <body>
+
+<!-- Contour selection panel -->
+<div id="contourSelectionPanel">
+    <div class="csp-header">
+        <button class="csp-close" id="cspCloseBtn">&#x2715;</button>
+        <h3>Selecciona un contorn</h3>
+        <p>Fes clic sobre un contorn per seleccionar-lo</p>
+    </div>
+    <div id="cspList"></div>
+    <button id="cspConfirmBtn" disabled>Confirmar selecció</button>
+</div>
 
 <div class="layout">
 
@@ -455,6 +545,7 @@ canvas{
     <input type="range" id="simplify" min="0.5" max="20" step="0.5" value="2">
     <div style="display:flex;gap:10px;margin-top:10px;">
         <button id="autoThresholdBtn" disabled>Auto</button>
+        <button id="cropBtn" disabled>Seleccionar zona</button>
         <button id="editBtn" disabled>Editar</button>
         <button id="restoreContourBtn" disabled>&#8630;</button>
     </div>
@@ -563,6 +654,7 @@ canvas{
             <li>El botó <strong>Auto</strong> calcula automàticament un llindar de detecció inicial basat en el contingut de la imatge.</li>
             <li>Mou el <strong>llindar de detecció</strong> fins que el contorn s&apos;ajusti bé a la vora de la peça.</li>
             <li><strong>Simplificació de punts</strong> redueix el nombre de punts d&apos;ancoratge. Valors més alts generen contorns més simples; valors baixos conserven més detall.</li>
+            <li>El botó <strong>Seleccionar zona</strong> permet delimitar manualment la zona de la imatge on es troba el document. Activa el mode i arrossega un rectangle sobre el document — tot el que quedi fora s&apos;ignorarà en la detecció. Fes clic a <strong>Eliminar zona</strong> per treure-la.</li>
             <li>Amb el botó <strong>Canviar vista</strong> pots alternar entre veure el contorn sobre la imatge original i veure&apos;l sol sobre fons negre.</li>
         </ul>
         <hr class="help-divider">
@@ -626,6 +718,13 @@ let contourPath = null;
 let initialDetectedContour = null;
 let rawDetectedContour = null;
 
+let allDetectedContours = []; 
+let isContourSelectionMode = false;
+
+let cropRect = null;
+let isCropMode = false;
+let cropDragStart = null;
+
 let calibPoints = [];
 let scaleFactorMMPerPixel = 0;
 let calibMouse = null;
@@ -635,7 +734,7 @@ let draggedPointIndex = -1;
 let hoveredPointIndex = -1;
 const DRAG_THRESHOLD = 8; 
 const CONTOUR_DRAG_THRESHOLD = 8; 
-const VISUAL_LINE_WIDTH = 2; 
+const VISUAL_LINE_WIDTH = 1; 
 let isEditMode = false; 
 let userEditedContour = null;
 let useMiterJoin = false;
@@ -663,6 +762,7 @@ const DOM = {
     smoothMode: document.getElementById('smoothMode'),
     lineWidthInput: document.getElementById('lineWidthInput'),
     editBtn: document.getElementById('editBtn'),
+    cropBtn: document.getElementById('cropBtn'),
     restoreContourBtn: document.getElementById('restoreContourBtn'),
     toggleCanvasBtn: document.getElementById('toggleCanvasBtn'),
     canvasWrapper: document.getElementById('canvasWrapper'),
@@ -672,6 +772,31 @@ const DOM = {
     zoomResetBtn: document.getElementById('zoomResetBtn'),
     zoomLabel: document.getElementById('zoomLabel'),
 };    
+
+function toggleCropMode() {
+    if (!imageObj) return;
+    if (cropRect) {
+        cropRect = null;
+        cropDragStart = null;
+        isCropMode = false;
+        DOM.cropBtn.textContent = 'Seleccionar zona';
+        DOM.cropBtn.classList.remove('btn-desa');
+        DOM.overlayCanvas.style.cursor = 'default';
+        drawInitialOverlay();
+        processImage(true);
+        return;
+    }
+    isCropMode = !isCropMode;
+    if (isCropMode) {
+        DOM.cropBtn.textContent = 'Cancel·lar zona';
+        DOM.cropBtn.classList.add('btn-desa');
+        DOM.overlayCanvas.style.cursor = 'crosshair';
+    } else {
+        DOM.cropBtn.textContent = 'Seleccionar zona';
+        DOM.cropBtn.classList.remove('btn-desa');
+        DOM.overlayCanvas.style.cursor = 'default';
+    }
+}
 
 function toggleEditMode() {
     const manualMode = isManualMode();
@@ -762,7 +887,16 @@ function resetAll() {
     initialDetectedContour = null;
     rawDetectedContour = null;
     userEditedContour = null; 
-    isEditMode = false; 
+    allDetectedContours = [];
+    isContourSelectionMode = false;
+    document.getElementById('contourSelectionPanel').classList.remove('visible');
+    isEditMode = false;
+    cropRect = null;
+    isCropMode = false;
+    cropDragStart = null;
+    DOM.cropBtn.disabled = true;
+    DOM.cropBtn.textContent = 'Seleccionar zona';
+    DOM.cropBtn.classList.remove('btn-desa');
     DOM.editBtn.textContent = 'Editar';
     DOM.editBtn.disabled = true;
     DOM.restoreContourBtn.disabled = true;
@@ -788,6 +922,28 @@ function drawInitialOverlay() {
     const ctxOverlay = DOM.overlayCanvas.getContext('2d');
     ctxOverlay.clearRect(0, 0, DOM.overlayCanvas.width, DOM.overlayCanvas.height);
     ctxOverlay.drawImage(imageObj, 0, 0, DOM.overlayCanvas.width, DOM.overlayCanvas.height);
+    drawCropOverlay(ctxOverlay);
+}
+
+function drawCropOverlay(ctx) {
+    if (!cropRect) return;
+    const x1 = Math.min(cropRect.x1, cropRect.x2);
+    const x2 = Math.max(cropRect.x1, cropRect.x2);
+    const y1 = Math.min(cropRect.y1, cropRect.y2);
+    const y2 = Math.max(cropRect.y1, cropRect.y2);
+    const W = DOM.overlayCanvas.width;
+    const H = DOM.overlayCanvas.height;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, 0, W, y1);
+    ctx.fillRect(0, y2, W, H - y2);
+    ctx.fillRect(0, y1, x1, y2 - y1);
+    ctx.fillRect(x2, y1, W - x2, y2 - y1);
+    ctx.strokeStyle = '#4fa3ff';
+    ctx.lineWidth = getScaledLineWidth(2);
+    ctx.setLineDash([6 * getScaledLineWidth(1), 4 * getScaledLineWidth(1)]);
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.restore();
 }
 
 function handleImageLoad(e) {
@@ -806,6 +962,7 @@ function handleImageLoad(e) {
                 drawInitialOverlay();
                 
                 DOM.autoThresholdBtn.disabled = false;
+                DOM.cropBtn.disabled = false;
                 updateEditBtnForThreshold();
             };
             imageObj.src = event.target.result;
@@ -837,8 +994,6 @@ function handleSliderInput(slider, valueDisplay, decimals = 0, recalculate = fal
     valueDisplay.textContent = parseFloat(slider.value).toFixed(decimals);
     if (imageObj && (initialDetectedContour || userEditedContour)) {
         processImage(recalculate); 
-    } else if (imageObj && recalculate) {
-        processImage(true);
     }
 }
 
@@ -859,7 +1014,7 @@ function handleDownloadClick() {
 }
 
 function handleOverlayClick(event) {
-    if (!imageObj || isEditMode || isDragging) return; 
+    if (!imageObj || isEditMode || isDragging) return;
 
     const distRealMM = parseFloat(DOM.calibDistanceInput.value);
     if (isNaN(distRealMM) || distRealMM <= 0) {
@@ -900,6 +1055,15 @@ function handleMouseDown(event) {
         panStartX = event.clientX - editPanX;
         panStartY = event.clientY - editPanY;
         DOM.overlayCanvas.style.cursor = 'grabbing';
+        event.preventDefault();
+        return;
+    }
+
+    if (isCropMode) {
+        const p = getOriginalCoords(event);
+        cropDragStart = p;
+        cropRect = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+        isDragging = true;
         event.preventDefault();
         return;
     }
@@ -953,6 +1117,12 @@ function handleDragMove(event) {
     xOriginal = Math.max(0, Math.min(imageObj.width, xOriginal));
     yOriginal = Math.max(0, Math.min(imageObj.height, yOriginal));
 
+    if (isCropMode && cropDragStart) {
+        cropRect = { x1: cropDragStart.x, y1: cropDragStart.y, x2: xOriginal, y2: yOriginal };
+        drawInitialOverlay();
+        return;
+    }
+
     if (!isEditMode && calibPoints.length === 2) {
         if (draggedPointIndex !== -1) { 
             if (event.shiftKey) {
@@ -981,6 +1151,17 @@ function handleDragMove(event) {
 }
 
 function handleMouseUp() {
+    if (isCropMode && cropDragStart && isDragging) {
+        cropDragStart = null;
+        isDragging = false;
+        draggedPointIndex = -1;
+        isCropMode = false;
+        DOM.cropBtn.textContent = 'Eliminar zona';
+        DOM.cropBtn.classList.add('btn-desa');
+        DOM.overlayCanvas.style.cursor = 'default';
+        drawInitialOverlay();
+        return;
+    }
     isDragging = false;
     draggedPointIndex = -1;
     if (isPanning) {
@@ -1180,6 +1361,7 @@ function initListeners() {
     initImageUploadArea();
     DOM.imageInput.addEventListener('change', handleImageLoad);
     DOM.autoThresholdBtn.addEventListener('click', handleAutoThreshold);
+    DOM.cropBtn.addEventListener('click', toggleCropMode);
     
     DOM.thresholdSlider.addEventListener('input', () => {
         handleSliderInput(DOM.thresholdSlider, DOM.thresholdValue, 0, true);
@@ -1213,6 +1395,9 @@ function initListeners() {
     window.addEventListener('mouseup', handleMouseUp); 
 
     DOM.toggleCanvasBtn.addEventListener('click', toggleCanvas);
+
+    document.getElementById('cspCloseBtn').addEventListener('click', closeContourSelectionPanel);
+    document.getElementById('cspConfirmBtn').addEventListener('click', confirmContourSelection);
 
     DOM.smoothMode.addEventListener('change', function() {
         DOM.smoothSlider.value = 0;
@@ -1277,10 +1462,10 @@ function drawCalibrationPoints() {
         drawPath(ctxOverlay, contourPath, 1, 1); 
     }
     
-    const scaledCalibLineWidth = getScaledLineWidth(2); 
+    const scaledCalibLineWidth = getScaledLineWidth(1); 
     if (calibPoints.length === 1 && calibMouse) {
         ctxOverlay.save();
-        ctxOverlay.strokeStyle = 'blue';
+        ctxOverlay.strokeStyle = 'lightgreen';
         ctxOverlay.lineWidth = scaledCalibLineWidth; 
         ctxOverlay.beginPath();
         ctxOverlay.moveTo(calibPoints[0].x, calibPoints[0].y);
@@ -1289,10 +1474,10 @@ function drawCalibrationPoints() {
         ctxOverlay.restore();
     }
     
-    const scaledCalibLineFinalWidth = getScaledLineWidth(2); 
+    const scaledCalibLineFinalWidth = getScaledLineWidth(1); 
     if (calibPoints.length === 2) {
         ctxOverlay.save();
-        ctxOverlay.strokeStyle = 'blue';
+        ctxOverlay.strokeStyle = 'lightgreen';
         ctxOverlay.lineWidth = scaledCalibLineFinalWidth; 
         ctxOverlay.beginPath();
         ctxOverlay.moveTo(calibPoints[0].x, calibPoints[0].y);
@@ -1302,11 +1487,12 @@ function drawCalibrationPoints() {
     }
 
     const scaledRadius = getScaledLineWidth(5); 
-    ctxOverlay.fillStyle = 'blue';
+    ctxOverlay.strokeStyle = 'lightgreen';
+    ctxOverlay.lineWidth = getScaledLineWidth(1);
     for (const p of calibPoints) {
         ctxOverlay.beginPath();
         ctxOverlay.arc(p.x, p.y, scaledRadius, 0, 2 * Math.PI); 
-        ctxOverlay.fill();
+        ctxOverlay.stroke();
     }
 }
 
@@ -1429,16 +1615,28 @@ function processImage(recalculateContour = true) {
             stretched[i] = ((gray[i] - grayMin) / grayRange) * 255;
         }
 
-        const cornerSamples = [0, W-1, (H-1)*W, (H-1)*W+W-1,
-            Math.floor(H*0.1)*W, Math.floor(H*0.1)*W+W-1,
-            Math.floor(H*0.9)*W, Math.floor(H*0.9)*W+W-1];
+        // Determine sample region (use crop zone if active, otherwise full image)
+        let srx0 = 0, sry0 = 0, srx1 = W - 1, sry1 = H - 1;
+        if (cropRect) {
+            srx0 = Math.round(Math.min(cropRect.x1, cropRect.x2));
+            srx1 = Math.round(Math.max(cropRect.x1, cropRect.x2));
+            sry0 = Math.round(Math.min(cropRect.y1, cropRect.y2));
+            sry1 = Math.round(Math.max(cropRect.y1, cropRect.y2));
+        }
+        const srW = srx1 - srx0, srH = sry1 - sry0;
+        const cornerSamples = [
+            sry0 * W + srx0, sry0 * W + srx1,
+            sry1 * W + srx0, sry1 * W + srx1,
+            Math.round(sry0 + srH * 0.1) * W + srx0, Math.round(sry0 + srH * 0.1) * W + srx1,
+            Math.round(sry0 + srH * 0.9) * W + srx0, Math.round(sry0 + srH * 0.9) * W + srx1,
+        ];
         let bgSum = 0;
         for (const idx of cornerSamples) bgSum += stretched[idx];
         const bgBrightness = bgSum / cornerSamples.length;
 
-        const cx = (W / 2) | 0, cy = (H / 2) | 0;
+        const cx = ((srx0 + srx1) / 2) | 0, cy = ((sry0 + sry1) / 2) | 0;
         let objSum = 0, objCount = 0;
-        const sampleR = Math.min(W, H) * 0.1 | 0;
+        const sampleR = Math.min(srW, srH) * 0.1 | 0;
         for (let dy = -sampleR; dy <= sampleR; dy += 2) {
             for (let dx = -sampleR; dx <= sampleR; dx += 2) {
                 if (dx*dx + dy*dy <= sampleR*sampleR) {
@@ -1456,6 +1654,33 @@ function processImage(recalculateContour = true) {
                 ? stretched[i] >= threshold
                 : stretched[i] < threshold;
             binary[i] = isObject ? 0 : 255;
+        }
+
+        if (cropRect) {
+            const cx1 = Math.round(Math.min(cropRect.x1, cropRect.x2));
+            const cx2 = Math.round(Math.max(cropRect.x1, cropRect.x2));
+            const cy1 = Math.round(Math.min(cropRect.y1, cropRect.y2));
+            const cy2 = Math.round(Math.max(cropRect.y1, cropRect.y2));
+            for (let py = 0; py < H; py++) {
+                for (let px = 0; px < W; px++) {
+                    if (px < cx1 || px > cx2 || py < cy1 || py > cy2) {
+                        binary[py * W + px] = 255;
+                    }
+                }
+            }
+            const edgeW = 3;
+            for (let py = cy1; py <= cy2; py++) {
+                for (let t = 0; t < edgeW; t++) {
+                    if (cx1 + t < W) binary[py * W + (cx1 + t)] = 255;
+                    if (cx2 - t >= 0) binary[py * W + (cx2 - t)] = 255;
+                }
+            }
+            for (let px = cx1; px <= cx2; px++) {
+                for (let t = 0; t < edgeW; t++) {
+                    if (cy1 + t < H) binary[(cy1 + t) * W + px] = 255;
+                    if (cy2 - t >= 0) binary[(cy2 - t) * W + px] = 255;
+                }
+            }
         }
         
         rawDetectedContour = detectContour(binary, imageObj.width, imageObj.height);
@@ -1544,62 +1769,72 @@ function drawPath(ctx, points, scaleX, scaleY) {
 }
 
 function detectContour(binary, width, height) {
-    let startX = -1, startY = -1;
-    for (let y = 0; y < height && startY === -1; y++) {
-        for (let x = 0; x < width; x++) {
-            const idx = y * width + x;
-            if (binary[idx] === 0) { 
-                if (x > 0 && binary[idx - 1] === 255) { 
-                    startX = x;
-                    startY = y;
-                    break;
+    return detectAllContours(binary, width, height, 1)[0] || [];
+}
+
+const CONTOUR_COLORS = ['#ff4444','#4fa3ff','#4caf82','#f1e974','#ff9944','#cc66ff','#44ccff','#ff6699','#99ff44','#ff44cc'];
+
+function detectAllContours(binary, width, height, maxContours = 10) {
+    const directions = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+    const visited = new Uint8Array(width * height);
+    const minContourLength = Math.max(10, Math.round((width + height) * 0.003));
+
+    function traceContour(startX, startY) {
+        const contour = [];
+        let x = startX, y = startY;
+        let currentDir = 6;
+        let steps = 0;
+        const maxSteps = width * height;
+        do {
+            contour.push({ x, y });
+            visited[y * width + x] = 1;
+            let found = false;
+            for (let i = 0; i < 8; i++) {
+                const dir = (currentDir + i) % 8;
+                const nx = x + directions[dir][0];
+                const ny = y + directions[dir][1];
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const idx = ny * width + nx;
+                    if (binary[idx] === 0) {
+                        let isBorder = false;
+                        for (let [dx, dy] of directions) {
+                            const cx = nx + dx, cy = ny + dy;
+                            if (cx >= 0 && cx < width && cy >= 0 && cy < height) {
+                                if (binary[cy * width + cx] === 255) { isBorder = true; break; }
+                            }
+                        }
+                        if (isBorder) {
+                            x = nx; y = ny;
+                            currentDir = (dir + 6) % 8;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!found) break;
+            steps++;
+        } while ((x !== startX || y !== startY) && steps < maxSteps);
+        return contour;
+    }
+
+    const allContours = [];
+    for (let scanY = 0; scanY < height; scanY++) {
+        for (let scanX = 0; scanX < width; scanX++) {
+            const idx = scanY * width + scanX;
+            if (binary[idx] === 0 && !visited[idx] && scanX > 0 && binary[idx - 1] === 255) {
+                const contour = traceContour(scanX, scanY);
+                for (const p of contour) visited[p.y * width + p.x] = 1;
+                if (contour.length >= minContourLength) {
+                    allContours.push(contour);
                 }
             }
         }
     }
-    if (startX === -1) return [];
-    const contour = [];
-    let x = startX, y = startY;
-    const directions = [[1, 0], [1, 1], [0, 1], [-1, 1],[-1, 0], [-1, -1], [0, -1], [1, -1]];
-    let currentDir = 6; 
-    let steps = 0;
-    const maxSteps = width * height; 
-    do {
-        contour.push({ x, y });
-        let found = false;
-        for (let i = 0; i < 8; i++) {
-            const dir = (currentDir + i) % 8; 
-            const nx = x + directions[dir][0];
-            const ny = y + directions[dir][1];
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                const idx = ny * width + nx;
-                if (binary[idx] === 0) { 
-                    let isBorder = false;
-                    for (let [dx, dy] of directions) {
-                        const checkX = nx + dx;
-                        const checkY = ny + dy;
-                        if (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
-                            const checkIdx = checkY * width + checkX;
-                            if (binary[checkIdx] === 255) {
-                                isBorder = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (isBorder) {
-                        x = nx;
-                        y = ny;
-                        currentDir = (dir + 6) % 8; 
-                        found = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if (!found) break; 
-        steps++;
-    } while ((x !== startX || y !== startY) && steps < maxSteps);
-    return contour;
+
+    // Sort by length descending, return top N
+    allContours.sort((a, b) => b.length - a.length);
+    return allContours.slice(0, maxContours);
 }
 
 function simplifyContour(points, tolerance) {
@@ -1670,14 +1905,29 @@ function calculateOtsuThreshold() {
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.drawImage(imageObj, 0, 0);
 
-    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const W = imageObj.width;
+    const H = imageObj.height;
+    const imageData = tempCtx.getImageData(0, 0, W, H);
     const data = imageData.data;
-    const numPixels = imageData.width * imageData.height;
 
-    const rawGray = new Float32Array(numPixels);
-    for (let i = 0; i < data.length; i += 4) {
-        rawGray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    // If a crop zone is active, only use pixels inside it for the histogram
+    let x0 = 0, y0 = 0, x1 = W - 1, y1 = H - 1;
+    if (cropRect) {
+        x0 = Math.max(0, Math.round(Math.min(cropRect.x1, cropRect.x2)));
+        x1 = Math.min(W - 1, Math.round(Math.max(cropRect.x1, cropRect.x2)));
+        y0 = Math.max(0, Math.round(Math.min(cropRect.y1, cropRect.y2)));
+        y1 = Math.min(H - 1, Math.round(Math.max(cropRect.y1, cropRect.y2)));
     }
+
+    const rawGray = [];
+    for (let py = y0; py <= y1; py++) {
+        for (let px = x0; px <= x1; px++) {
+            const i = (py * W + px) * 4;
+            rawGray.push(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+        }
+    }
+
+    const numPixels = rawGray.length;
     let gMin = 255, gMax = 0;
     for (let i = 0; i < numPixels; i++) {
         if (rawGray[i] < gMin) gMin = rawGray[i];
@@ -1692,15 +1942,9 @@ function calculateOtsuThreshold() {
     }
 
     let total = 0;
-    for (let i = 0; i < 256; i++) {
-        total += i * histogram[i];
-    }
+    for (let i = 0; i < 256; i++) total += i * histogram[i];
 
-    let sumB = 0;
-    let wB = 0;
-    let wF = 0;
-    let maxVar = 0;
-    let threshold = 0;
+    let sumB = 0, wB = 0, wF = 0, maxVar = 0, threshold = 0;
 
     for (let i = 0; i < 256; i++) {
         wB += histogram[i];
@@ -1713,7 +1957,6 @@ function calculateOtsuThreshold() {
 
         const mB = sumB / wB;
         const mF = (total - sumB) / wF;
-
         const varBetween = wB * wF * (mB - mF) * (mB - mF);
 
         if (varBetween > maxVar) {
@@ -1874,8 +2117,250 @@ function handleAutoThreshold() {
     const threshold = calculateOtsuThreshold();
     DOM.thresholdSlider.value = threshold;
     DOM.thresholdValue.textContent = threshold;
-    processImage(true); 
+
+    // Detect all contours
+    const tempCanvas = document.createElement('canvas');
+    const ctxTemp = tempCanvas.getContext('2d');
+    tempCanvas.width = imageObj.width;
+    tempCanvas.height = imageObj.height;
+    ctxTemp.drawImage(imageObj, 0, 0, imageObj.width, imageObj.height);
+    let imageData = ctxTemp.getImageData(0, 0, imageObj.width, imageObj.height);
+    let data = imageData.data;
+    const W = imageObj.width, H = imageObj.height;
+
+    const gray = new Float32Array(W * H);
+    for (let i = 0; i < data.length; i += 4) {
+        gray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    }
+    let grayMin = 255, grayMax = 0;
+    for (let i = 0; i < gray.length; i++) {
+        if (gray[i] < grayMin) grayMin = gray[i];
+        if (gray[i] > grayMax) grayMax = gray[i];
+    }
+    const grayRange = grayMax - grayMin || 1;
+    const stretched = new Float32Array(W * H);
+    for (let i = 0; i < gray.length; i++) {
+        stretched[i] = ((gray[i] - grayMin) / grayRange) * 255;
+    }
+
+    // Determine sample region (use crop zone if active, otherwise full image)
+    let rx0 = 0, ry0 = 0, rx1 = W - 1, ry1 = H - 1;
+    if (cropRect) {
+        rx0 = Math.round(Math.min(cropRect.x1, cropRect.x2));
+        rx1 = Math.round(Math.max(cropRect.x1, cropRect.x2));
+        ry0 = Math.round(Math.min(cropRect.y1, cropRect.y2));
+        ry1 = Math.round(Math.max(cropRect.y1, cropRect.y2));
+    }
+    const rW = rx1 - rx0, rH = ry1 - ry0;
+
+    // Sample corners of the region for background brightness
+    const cornerSamples = [
+        ry0 * W + rx0, ry0 * W + rx1,
+        ry1 * W + rx0, ry1 * W + rx1,
+        Math.round(ry0 + rH * 0.1) * W + rx0, Math.round(ry0 + rH * 0.1) * W + rx1,
+        Math.round(ry0 + rH * 0.9) * W + rx0, Math.round(ry0 + rH * 0.9) * W + rx1,
+    ];
+    let bgSum = 0;
+    for (const idx of cornerSamples) bgSum += stretched[idx];
+    const bgBrightness = bgSum / cornerSamples.length;
+
+    // Sample center of the region for object brightness
+    const cx2 = ((rx0 + rx1) / 2) | 0, cy2 = ((ry0 + ry1) / 2) | 0;
+    let objSum = 0, objCount = 0;
+    const sampleR = Math.min(rW, rH) * 0.1 | 0;
+    for (let dy = -sampleR; dy <= sampleR; dy += 2) {
+        for (let dx = -sampleR; dx <= sampleR; dx += 2) {
+            if (dx*dx + dy*dy <= sampleR*sampleR) {
+                objSum += stretched[(cy2+dy)*W+(cx2+dx)];
+                objCount++;
+            }
+        }
+    }
+    const objBrightness = objSum / (objCount || 1);
+    const objectIsBrighter = objBrightness > bgBrightness;
+
+    let binary = new Array(W * H).fill(0);
+    for (let i = 0; i < stretched.length; i++) {
+        const isObject = objectIsBrighter ? stretched[i] >= threshold : stretched[i] < threshold;
+        binary[i] = isObject ? 0 : 255;
+    }
+
+    if (cropRect) {
+        const cx1 = Math.round(Math.min(cropRect.x1, cropRect.x2));
+        const cx2b = Math.round(Math.max(cropRect.x1, cropRect.x2));
+        const cy1 = Math.round(Math.min(cropRect.y1, cropRect.y2));
+        const cy2b = Math.round(Math.max(cropRect.y1, cropRect.y2));
+        // Fill everything outside crop zone with 255 (background)
+        for (let py = 0; py < H; py++) {
+            for (let px = 0; px < W; px++) {
+                if (px < cx1 || px > cx2b || py < cy1 || py > cy2b) {
+                    binary[py * W + px] = 255;
+                }
+            }
+        }
+        // Also clear a 3px border INSIDE the crop to avoid detecting the crop edge itself
+        const edgeW = 3;
+        for (let py = cy1; py <= cy2b; py++) {
+            for (let t = 0; t < edgeW; t++) {
+                if (cx1 + t < W) binary[py * W + (cx1 + t)] = 255;
+                if (cx2b - t >= 0) binary[py * W + (cx2b - t)] = 255;
+            }
+        }
+        for (let px = cx1; px <= cx2b; px++) {
+            for (let t = 0; t < edgeW; t++) {
+                if (cy1 + t < H) binary[(cy1 + t) * W + px] = 255;
+                if (cy2b - t >= 0) binary[(cy2b - t) * W + px] = 255;
+            }
+        }
+    }
+
+    allDetectedContours = detectAllContours(binary, W, H, 10);
+
+    if (allDetectedContours.length === 0) {
+        alert('No s\'han trobat contorns. Prova d\'ajustar el llindar manualment.');
+        return;
+    }
+
+    // Always show the selection panel so the user can confirm or choose
+    isContourSelectionMode = true;
+    drawAllContoursOverlay(allDetectedContours, 0);
+    openContourSelectionPanel(allDetectedContours);
 }
+
+let selectedContourIndex = -1;
+
+function drawAllContoursOverlay(contours, highlightIdx) {
+    if (!imageObj) return;
+    drawInitialOverlay();
+    const ctx = DOM.overlayCanvas.getContext('2d');
+    const tol = parseFloat(DOM.simplifySlider.value) || 2;
+
+    contours.forEach((rawC, i) => {
+        const c = simplifyContour(rawC, tol);
+        if (!c || c.length < 2) return;
+        const color = CONTOUR_COLORS[i % CONTOUR_COLORS.length];
+        const isHighlighted = (i === highlightIdx);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = getScaledLineWidth(isHighlighted ? 2 : 1);
+        ctx.globalAlpha = isHighlighted ? 1.0 : 0.7;
+        if (isHighlighted) {
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8 * getScaledLineWidth(1);
+        }
+        ctx.beginPath();
+        ctx.moveTo(c[0].x, c[0].y);
+        for (let j = 1; j < c.length; j++) ctx.lineTo(c[j].x, c[j].y);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Draw number label at centroid
+        let cx = 0, cy = 0;
+        for (const p of c) { cx += p.x; cy += p.y; }
+        cx /= c.length; cy /= c.length;
+        const fontSize = getScaledLineWidth(14);
+        ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = getScaledLineWidth(3);
+        ctx.strokeText(i + 1, cx, cy);
+        ctx.fillText(i + 1, cx, cy);
+        ctx.restore();
+    });
+}
+
+function getBoundingBoxMM(contour) {
+    if (!contour || contour.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of contour) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+    }
+    if (scaleFactorMMPerPixel > 0) {
+        return {
+            w: ((maxX - minX) * scaleFactorMMPerPixel).toFixed(1),
+            h: ((maxY - minY) * scaleFactorMMPerPixel).toFixed(1)
+        };
+    }
+    return { w: (maxX - minX).toFixed(0) + 'px', h: (maxY - minY).toFixed(0) + 'px' };
+}
+
+function openContourSelectionPanel(contours) {
+    selectedContourIndex = 0; // Pre-select the largest contour
+    const panel = document.getElementById('contourSelectionPanel');
+    const list = document.getElementById('cspList');
+    const confirmBtn = document.getElementById('cspConfirmBtn');
+    confirmBtn.disabled = false;
+
+    list.innerHTML = '';
+    const tol = parseFloat(DOM.simplifySlider.value) || 2;
+
+    contours.forEach((rawC, i) => {
+        const c = simplifyContour(rawC, tol);
+        const color = CONTOUR_COLORS[i % CONTOUR_COLORS.length];
+        const bb = getBoundingBoxMM(rawC);
+        const item = document.createElement('div');
+        item.className = 'csp-item' + (i === 0 ? ' selected' : '');
+        item.dataset.index = i;
+
+        const bbText = bb
+            ? (scaleFactorMMPerPixel > 0 ? `${bb.w} × ${bb.h} mm` : `${bb.w} × ${bb.h}`)
+            : '';
+
+        item.innerHTML = `
+            <div class="csp-swatch" style="background:${color}"></div>
+            <div class="csp-info">
+                <strong>Contorn ${i + 1}</strong>${i === 0 ? ' <span style="color:#4caf82;font-size:0.8em">(més gran)</span>' : ''}<br>
+                ${c ? c.length : 0} punts${bbText ? ' · ' + bbText : ''}
+            </div>`;
+
+        item.addEventListener('click', () => {
+            selectedContourIndex = i;
+            document.querySelectorAll('.csp-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+            confirmBtn.disabled = false;
+            drawAllContoursOverlay(contours, i);
+        });
+
+        item.addEventListener('mouseenter', () => {
+            if (selectedContourIndex !== i) drawAllContoursOverlay(contours, i);
+        });
+        item.addEventListener('mouseleave', () => {
+            drawAllContoursOverlay(contours, selectedContourIndex);
+        });
+
+        list.appendChild(item);
+    });
+
+    panel.classList.add('visible');
+}
+
+function confirmContourSelection() {
+    if (selectedContourIndex < 0 || !allDetectedContours[selectedContourIndex]) return;
+    rawDetectedContour = allDetectedContours[selectedContourIndex];
+    const tol = parseFloat(DOM.simplifySlider.value) || 2;
+    initialDetectedContour = simplifyContour(rawDetectedContour, tol);
+    userEditedContour = null;
+    DOM.restoreContourBtn.disabled = true;
+    isContourSelectionMode = false;
+    closeContourSelectionPanel();
+    processImage(false);
+}
+
+function closeContourSelectionPanel() {
+    document.getElementById('contourSelectionPanel').classList.remove('visible');
+    isContourSelectionMode = false;
+    if (initialDetectedContour) {
+        processImage(false);
+    } else {
+        drawInitialOverlay();
+    }
+}
+
 
 function getTimestampFilename(prefix = "traçat_") {
     const now = new Date();

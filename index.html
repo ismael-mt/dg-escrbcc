@@ -33,6 +33,10 @@ body{
     grid-template-columns:50% 50%;
     height:100vh;
     overflow:hidden;
+    transition: height 0.2s;
+}
+.layout.has-groups {
+    height: calc(100vh - 56px);
 }
 
 .left{
@@ -472,13 +476,156 @@ canvas{
 }
 .csp-info { font-size: 0.8em; color: var(--text-muted); line-height: 1.4; }
 .csp-info strong { color: var(--text); font-size: 0.95em; }
-#cspConfirmBtn {
-    margin: 10px;
-    width: calc(100% - 20px);
+/* Panel action buttons */
+.csp-action-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding: 10px;
-    font-size: 14px;
-    font-weight: 700;
     flex-shrink: 0;
+    border-top: 1px solid #333;
+}
+#cspGuardarBtn {
+    display: none;
+    width: 100%;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    background: #f1e974;
+    color: #000;
+    border: 2px solid #000;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#cspGuardarBtn::before { display: none; }
+#cspGuardarBtn:hover { background: #e8df50; }
+
+#cspArxivarBtn {
+    display: none;
+    width: 100%;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#cspArxivarBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Panel item states */
+.csp-item {
+    position: relative;
+}
+.csp-checkbox {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #555;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    transition: all 0.15s;
+}
+.csp-checkbox.checked {
+    background: #4caf82;
+    border-color: #4caf82;
+    color: white;
+}
+.csp-checkbox.checked::after {
+    content: '✓';
+}
+.csp-item.editing {
+    border-color: #f1e974 !important;
+    background: #2a2800 !important;
+    box-shadow: 0 0 8px rgba(241,233,116,0.4);
+}
+.csp-item.archive-selected {
+    border-color: #4caf82 !important;
+    background: #1a2b22 !important;
+}
+.csp-item.saved .csp-info::after {
+    content: '';
+}
+.csp-saved-badge {
+    display: none;
+    margin-left: 5px;
+    font-size: 0.75em;
+    color: #4caf82;
+    font-weight: 700;
+}
+.csp-edit-badge {
+    display: none;
+    margin-left: 5px;
+    font-size: 0.75em;
+    color: #f1e974;
+    font-weight: 700;
+}
+.csp-item.editing .csp-edit-badge { display: inline; }
+.csp-item.saved .csp-saved-badge { display: inline; }
+
+/* Groups bar */
+#groupsBar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: #1a1a1a;
+    border-top: 2px solid #333;
+    z-index: 900;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+    overflow-x: auto;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+}
+.groups-bar-label {
+    font-size: 0.78em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.group-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 20px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+.group-pill::before { display: none; }
+.group-pill:hover { border-color: #4caf82; background: #1a2b22; color: #4caf82; }
+.group-pill-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.group-pill-count {
+    background: #444;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    color: var(--text-muted);
 }
 
 </style>
@@ -490,12 +637,18 @@ canvas{
 <div id="contourSelectionPanel">
     <div class="csp-header">
         <button class="csp-close" id="cspCloseBtn">&#x2715;</button>
-        <h3>Selecciona un contorn</h3>
-        <p>Fes clic sobre un contorn per seleccionar-lo</p>
+        <h3 id="cspPanelTitle">Contorns detectats</h3>
+        <p id="cspPanelSubtitle">Doble clic per editar &middot; Clic per seleccionar</p>
     </div>
     <div id="cspList"></div>
-    <button id="cspConfirmBtn" disabled>Confirmar selecció</button>
+    <div class="csp-action-btns">
+        <button id="cspGuardarBtn">💾 Guardar contorn</button>
+        <button id="cspArxivarBtn">📁 Arxivar seleccionats</button>
+    </div>
 </div>
+
+<!-- Groups bottom bar -->
+<div id="groupsBar"></div>
 
 <div class="layout">
 
@@ -597,7 +750,19 @@ canvas{
     <label>Gruix de línia (mm):</label>
     <input type="number" id="lineWidthInput" value="0.025" min="0.001" step="0.001">
 
-    <button id="downloadBtn" style="margin-top:15px;">Descarregar</button>
+    <label style="margin-top:10px;">Mides del paper de tall (mm):</label>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:4px;">
+        <div>
+            <label style="font-size:0.82em; color:var(--text-muted); margin-bottom:3px;">Amplada</label>
+            <input type="number" id="paperWidthInput" value="400" min="1" step="1" placeholder="mm">
+        </div>
+        <div>
+            <label style="font-size:0.82em; color:var(--text-muted); margin-bottom:3px;">Alçada</label>
+            <input type="number" id="paperHeightInput" value="300" min="1" step="1" placeholder="mm">
+        </div>
+    </div>
+
+    <button id="downloadBtn" style="margin-top:5px;">Descarregar</button>
 </section>
 
 </div>
@@ -721,6 +886,15 @@ let rawDetectedContour = null;
 let allDetectedContours = []; 
 let isContourSelectionMode = false;
 
+// ===== NEW STATE FOR CONTOUR MANAGEMENT =====
+let contourSavedStates = {};   // { [index]: { contourPath, rawContour, params } }
+let groups = [];                // array of group objects
+let nextGroupId = 1;
+let activeEditContourIndex = -1;  // index of contour being edited (-1 = none)
+let selectedForArchive = new Set(); // Set of indices selected for archiving
+let activeExportGroupId = null;    // group id currently shown in panel (for collage export)
+// =============================================
+
 let cropRect = null;
 let isCropMode = false;
 let cropDragStart = null;
@@ -767,6 +941,8 @@ const DOM = {
     toggleCanvasBtn: document.getElementById('toggleCanvasBtn'),
     canvasWrapper: document.getElementById('canvasWrapper'),
     zoomControls: document.getElementById('zoomControls'),
+    paperWidthInput: document.getElementById('paperWidthInput'),
+    paperHeightInput: document.getElementById('paperHeightInput'),
     zoomInBtn: document.getElementById('zoomInBtn'),
     zoomOutBtn: document.getElementById('zoomOutBtn'),
     zoomResetBtn: document.getElementById('zoomResetBtn'),
@@ -894,6 +1070,13 @@ function resetAll() {
     cropRect = null;
     isCropMode = false;
     cropDragStart = null;
+    // Reset new state
+    contourSavedStates = {};
+    groups = [];
+    nextGroupId = 1;
+    activeEditContourIndex = -1;
+    selectedForArchive = new Set();
+    renderGroupsBar();
     DOM.cropBtn.disabled = true;
     DOM.cropBtn.textContent = 'Seleccionar zona';
     DOM.cropBtn.classList.remove('btn-desa');
@@ -923,6 +1106,8 @@ function drawInitialOverlay() {
     ctxOverlay.clearRect(0, 0, DOM.overlayCanvas.width, DOM.overlayCanvas.height);
     ctxOverlay.drawImage(imageObj, 0, 0, DOM.overlayCanvas.width, DOM.overlayCanvas.height);
     drawCropOverlay(ctxOverlay);
+    // Draw group zones (green transparent overlays)
+    drawGroupZones(ctxOverlay);
 }
 
 function drawCropOverlay(ctx) {
@@ -998,6 +1183,29 @@ function handleSliderInput(slider, valueDisplay, decimals = 0, recalculate = fal
 }
 
 function handleDownloadClick() {
+    // Group collage export
+    if (activeExportGroupId !== null) {
+        const group = groups.find(g => g.id === activeExportGroupId);
+        if (group && group.contourItems.length >= 2) {
+            if (scaleFactorMMPerPixel === 0) {
+                alert('Es requereix fer la calibració (pas 2) abans de descarregar.');
+                return;
+            }
+            const paperW = parseFloat(DOM.paperWidthInput.value);
+            const paperH = parseFloat(DOM.paperHeightInput.value);
+            if (!paperW || !paperH || paperW <= 0 || paperH <= 0) {
+                alert('Introdueix unes mides de paper vàlides (amplada i alçada en mm).');
+                return;
+            }
+            const format = DOM.formatSelect.value;
+            if (format === 'svg') downloadGroupCollageSVG(group, paperW, paperH);
+            else if (format === 'dxf') downloadGroupCollageDXF(group, paperW, paperH);
+            else if (format === 'pdf') downloadGroupCollagePDF(group, paperW, paperH);
+            return;
+        }
+    }
+
+    // Single contour export (original behaviour)
     if (!contourPath || contourPath.length === 0) {
         alert('Es necessari primer processar la imatge');
         return;
@@ -1364,8 +1572,25 @@ function initListeners() {
     DOM.cropBtn.addEventListener('click', toggleCropMode);
     
     DOM.thresholdSlider.addEventListener('input', () => {
-        handleSliderInput(DOM.thresholdSlider, DOM.thresholdValue, 0, true);
+        DOM.thresholdValue.textContent = DOM.thresholdSlider.value;
         updateEditBtnForThreshold();
+        if (activeEditContourIndex >= 0) {
+            // Re-detect contours with new threshold and update active one
+            const newContours = redetectAllContours();
+            if (newContours && newContours.length > 0) {
+                allDetectedContours = newContours;
+                if (activeEditContourIndex < newContours.length) {
+                    rawDetectedContour = newContours[activeEditContourIndex];
+                    const tol = parseFloat(DOM.simplifySlider.value) || 2;
+                    initialDetectedContour = simplifyContour(rawDetectedContour, tol);
+                    userEditedContour = null;
+                    processImage(false);
+                    updatePanelListCounts();
+                }
+            }
+        } else if (imageObj && (initialDetectedContour || userEditedContour)) {
+            processImage(true);
+        }
     });
 
     DOM.simplifySlider.addEventListener('input', () => {
@@ -1374,6 +1599,7 @@ function initListeners() {
             initialDetectedContour = simplifyContour(rawDetectedContour, tol);
             userEditedContour = null;
             processImage(false);
+            if (activeEditContourIndex >= 0) updatePanelListCounts();
         }
     });
     
@@ -1397,7 +1623,8 @@ function initListeners() {
     DOM.toggleCanvasBtn.addEventListener('click', toggleCanvas);
 
     document.getElementById('cspCloseBtn').addEventListener('click', closeContourSelectionPanel);
-    document.getElementById('cspConfirmBtn').addEventListener('click', confirmContourSelection);
+    document.getElementById('cspGuardarBtn').addEventListener('click', saveActiveContour);
+    document.getElementById('cspArxivarBtn').addEventListener('click', archiveSelectedContours);
 
     DOM.smoothMode.addEventListener('change', function() {
         DOM.smoothSlider.value = 0;
@@ -2227,8 +2454,6 @@ function handleAutoThreshold() {
     openContourSelectionPanel(allDetectedContours);
 }
 
-let selectedContourIndex = -1;
-
 function drawAllContoursOverlay(contours, highlightIdx) {
     if (!imageObj) return;
     drawInitialOverlay();
@@ -2236,37 +2461,89 @@ function drawAllContoursOverlay(contours, highlightIdx) {
     const tol = parseFloat(DOM.simplifySlider.value) || 2;
 
     contours.forEach((rawC, i) => {
-        const c = simplifyContour(rawC, tol);
+        // Use saved state's contourPath if available and not currently being edited
+        let c;
+        if (contourSavedStates[i] && contourSavedStates[i].contourPath && i !== activeEditContourIndex) {
+            c = contourSavedStates[i].contourPath;
+        } else {
+            c = simplifyContour(rawC, tol);
+        }
         if (!c || c.length < 2) return;
+        
         const color = CONTOUR_COLORS[i % CONTOUR_COLORS.length];
-        const isHighlighted = (i === highlightIdx);
+        const isHighlighted = (i === highlightIdx && highlightIdx >= 0);
+        const isEditing = (i === activeEditContourIndex);
+        const isArchiveSelected = selectedForArchive.has(i);
+        const isSaved = !!contourSavedStates[i];
+
         ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = getScaledLineWidth(isHighlighted ? 2 : 1);
-        ctx.globalAlpha = isHighlighted ? 1.0 : 0.7;
-        if (isHighlighted) {
+        
+        // Fill for archive-selected contours
+        if (isArchiveSelected) {
+            ctx.beginPath();
+            ctx.moveTo(c[0].x, c[0].y);
+            for (let j = 1; j < c.length; j++) ctx.lineTo(c[j].x, c[j].y);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.12;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+
+        // Stroke style
+        ctx.strokeStyle = isEditing ? '#f1e974' : color;
+        ctx.lineWidth = getScaledLineWidth(isEditing ? 3 : isHighlighted ? 2.5 : isSaved ? 2 : 1);
+        ctx.globalAlpha = (isEditing || isHighlighted || isArchiveSelected) ? 1.0 : isSaved ? 0.85 : 0.7;
+
+        if (isEditing) {
+            ctx.shadowColor = '#f1e974';
+            ctx.shadowBlur = 10 * getScaledLineWidth(1);
+            ctx.setLineDash([8 * getScaledLineWidth(1), 4 * getScaledLineWidth(1)]);
+        } else if (isHighlighted) {
             ctx.shadowColor = color;
             ctx.shadowBlur = 8 * getScaledLineWidth(1);
+        } else if (isSaved) {
+            ctx.strokeStyle = '#4caf82';
         }
+
         ctx.beginPath();
         ctx.moveTo(c[0].x, c[0].y);
         for (let j = 1; j < c.length; j++) ctx.lineTo(c[j].x, c[j].y);
         ctx.closePath();
         ctx.stroke();
 
-        // Draw number label at centroid
+        // Label at centroid
         let cx = 0, cy = 0;
         for (const p of c) { cx += p.x; cy += p.y; }
         cx /= c.length; cy /= c.length;
+        
         const fontSize = getScaledLineWidth(14);
-        ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 1;
+        ctx.setLineDash([]);
         ctx.shadowBlur = 0;
+        ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
+        ctx.fillStyle = isEditing ? '#f1e974' : isSaved ? '#4caf82' : color;
+        ctx.globalAlpha = 1;
         ctx.strokeStyle = '#000';
         ctx.lineWidth = getScaledLineWidth(3);
         ctx.strokeText(i + 1, cx, cy);
         ctx.fillText(i + 1, cx, cy);
+
+        // Archive check icon
+        if (isArchiveSelected) {
+            const chkSize = getScaledLineWidth(13);
+            ctx.font = `bold ${chkSize}px sans-serif`;
+            ctx.fillStyle = '#4caf82';
+            ctx.fillText('✓', cx + getScaledLineWidth(12), cy);
+        }
+
+        // Editing icon
+        if (isEditing) {
+            const editSize = getScaledLineWidth(12);
+            ctx.font = `${editSize}px sans-serif`;
+            ctx.fillStyle = '#f1e974';
+            ctx.fillText('✏️', cx + getScaledLineWidth(12), cy);
+        }
+
         ctx.restore();
     });
 }
@@ -2290,21 +2567,28 @@ function getBoundingBoxMM(contour) {
 }
 
 function openContourSelectionPanel(contours) {
-    selectedContourIndex = 0; // Pre-select the largest contour
     const panel = document.getElementById('contourSelectionPanel');
     const list = document.getElementById('cspList');
-    const confirmBtn = document.getElementById('cspConfirmBtn');
-    confirmBtn.disabled = false;
+
+    document.getElementById('cspPanelTitle').textContent = 'Contorns detectats';
+    document.getElementById('cspPanelSubtitle').textContent = 'Doble clic per editar · Clic per seleccionar';
+    activeExportGroupId = null;
 
     list.innerHTML = '';
     const tol = parseFloat(DOM.simplifySlider.value) || 2;
+    
+    // Reset active edit index when panel is (re)opened
+    activeEditContourIndex = -1;
 
     contours.forEach((rawC, i) => {
         const c = simplifyContour(rawC, tol);
         const color = CONTOUR_COLORS[i % CONTOUR_COLORS.length];
         const bb = getBoundingBoxMM(rawC);
         const item = document.createElement('div');
-        item.className = 'csp-item' + (i === 0 ? ' selected' : '');
+        const isSaved = !!contourSavedStates[i];
+        const isArchiveSelected = selectedForArchive.has(i);
+        
+        item.className = 'csp-item' + (isSaved ? ' saved' : '') + (isArchiveSelected ? ' archive-selected' : '');
         item.dataset.index = i;
 
         const bbText = bb
@@ -2312,52 +2596,64 @@ function openContourSelectionPanel(contours) {
             : '';
 
         item.innerHTML = `
+            <div class="csp-checkbox${isArchiveSelected ? ' checked' : ''}"></div>
             <div class="csp-swatch" style="background:${color}"></div>
             <div class="csp-info">
-                <strong>Contorn ${i + 1}</strong>${i === 0 ? ' <span style="color:#4caf82;font-size:0.8em">(més gran)</span>' : ''}<br>
+                <strong>Contorn ${i + 1}</strong>${i === 0 ? ' <span style="color:#4caf82;font-size:0.8em">(més gran)</span>' : ''}
+                <span class="csp-saved-badge">✓ Guardat</span>
+                <span class="csp-edit-badge">✏ Editant...</span><br>
                 ${c ? c.length : 0} punts${bbText ? ' · ' + bbText : ''}
             </div>`;
 
+        // Click timer for distinguishing single vs double click
+        let clickTimer = null;
+        
         item.addEventListener('click', () => {
-            selectedContourIndex = i;
-            document.querySelectorAll('.csp-item').forEach(el => el.classList.remove('selected'));
-            item.classList.add('selected');
-            confirmBtn.disabled = false;
-            drawAllContoursOverlay(contours, i);
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+                clickTimer = null;
+                // Double click: activate for editing
+                activateContourForEditing(i);
+            } else {
+                clickTimer = setTimeout(() => {
+                    clickTimer = null;
+                    // Single click: toggle archive selection
+                    toggleArchiveSelection(i);
+                    drawAllContoursOverlay(contours, activeEditContourIndex);
+                }, 260);
+            }
         });
 
         item.addEventListener('mouseenter', () => {
-            if (selectedContourIndex !== i) drawAllContoursOverlay(contours, i);
+            if (activeEditContourIndex < 0) {
+                drawAllContoursOverlay(contours, i);
+            }
         });
         item.addEventListener('mouseleave', () => {
-            drawAllContoursOverlay(contours, selectedContourIndex);
+            drawAllContoursOverlay(contours, activeEditContourIndex);
         });
 
         list.appendChild(item);
     });
 
+    updateCspButtons();
     panel.classList.add('visible');
-}
-
-function confirmContourSelection() {
-    if (selectedContourIndex < 0 || !allDetectedContours[selectedContourIndex]) return;
-    rawDetectedContour = allDetectedContours[selectedContourIndex];
-    const tol = parseFloat(DOM.simplifySlider.value) || 2;
-    initialDetectedContour = simplifyContour(rawDetectedContour, tol);
-    userEditedContour = null;
-    DOM.restoreContourBtn.disabled = true;
-    isContourSelectionMode = false;
-    closeContourSelectionPanel();
-    processImage(false);
+    drawAllContoursOverlay(contours, -1);
 }
 
 function closeContourSelectionPanel() {
     document.getElementById('contourSelectionPanel').classList.remove('visible');
     isContourSelectionMode = false;
+    activeExportGroupId = null;
+    activeEditContourIndex = -1;
     if (initialDetectedContour) {
         processImage(false);
     } else {
         drawInitialOverlay();
+        // Still draw all contours overlay if we have them
+        if (allDetectedContours.length > 0) {
+            drawAllContoursOverlay(allDetectedContours, -1);
+        }
     }
 }
 
@@ -2370,6 +2666,167 @@ function getTimestampFilename(prefix = "traçat_") {
     const hh = String(now.getHours()).padStart(2, '0');
     const min = String(now.getMinutes()).padStart(2, '0');
     return `${prefix}${yyyy}${mm}${dd}_${hh}${min}`;
+}
+
+// ===== COLLAGE LAYOUT HELPER =====
+// Returns array of { path, tx, ty } where tx/ty are mm offsets to place each contour.
+// Contours are arranged in rows, 3mm gap between them, fitting within paperW x paperH.
+function buildCollageLayout(group, paperW, paperH) {
+    const GAP = 3; // mm between contours
+    const scale = scaleFactorMMPerPixel;
+
+    // Get normalised contour paths in mm coordinates (origin at 0,0)
+    const contours = group.contourItems.map(item => {
+        const saved = item.savedState;
+        const path = saved && saved.contourPath ? saved.contourPath :
+            (saved && saved.rawContour ? simplifyContour(saved.rawContour, 2) : null);
+        if (!path || path.length < 2) return null;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of path) {
+            if (p.x < minX) minX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y > maxY) maxY = p.y;
+        }
+        const wMM = (maxX - minX) * scale;
+        const hMM = (maxY - minY) * scale;
+        // Normalise: shift so bounding box starts at (0,0) in mm
+        const normPath = path.map(p => ({
+            x: (p.x - minX) * scale,
+            y: (p.y - minY) * scale
+        }));
+        return { path: normPath, wMM, hMM };
+    }).filter(Boolean);
+
+    if (contours.length === 0) return [];
+
+    // Simple greedy row packing
+    const placed = [];
+    let curX = 0, curY = 0, rowH = 0;
+
+    for (const c of contours) {
+        if (curX > 0 && curX + c.wMM > paperW) {
+            // New row
+            curX = 0;
+            curY += rowH + GAP;
+            rowH = 0;
+        }
+        placed.push({ path: c.path, tx: curX, ty: curY });
+        curX += c.wMM + GAP;
+        rowH = Math.max(rowH, c.hMM);
+    }
+
+    return placed;
+}
+
+// ===== COLLAGE SVG =====
+function downloadGroupCollageSVG(group, paperW, paperH) {
+    const layout = buildCollageLayout(group, paperW, paperH);
+    if (layout.length === 0) { alert('No s\'han pogut obtenir els contorns del grup.'); return; }
+    const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
+
+    let pathsStr = '';
+    for (const item of layout) {
+        let d = '';
+        for (let i = 0; i < item.path.length; i++) {
+            const x = (item.path[i].x + item.tx).toFixed(3);
+            const y = (item.path[i].y + item.ty).toFixed(3);
+            d += (i === 0 ? 'M ' : 'L ') + x + ',' + y + ' ';
+        }
+        d += 'Z';
+        pathsStr += `  <path d="${d}" fill="none" stroke="red" stroke-width="${lineWidth}" stroke-linecap="round" stroke-linejoin="round"/>\n`;
+    }
+
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg width="${paperW}mm" height="${paperH}mm" viewBox="0 0 ${paperW} ${paperH}" xmlns="http://www.w3.org/2000/svg">\n${pathsStr}</svg>`;
+    downloadFile(svg, getTimestampFilename('traçats_') + '.svg', 'image/svg+xml');
+}
+
+// ===== COLLAGE DXF =====
+function downloadGroupCollageDXF(group, paperW, paperH) {
+    const layout = buildCollageLayout(group, paperW, paperH);
+    if (layout.length === 0) { alert('No s\'han pogut obtenir els contorns del grup.'); return; }
+    const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
+    const stdWeights = [0,5,9,13,15,18,20,25,30,35,40,50,53,60,70,80,90,100,106,120,140,158,200,211];
+    const lwCentiMM = Math.round(lineWidth * 100);
+    const lineWeightCentiMM = stdWeights.reduce((a, b) => Math.abs(b - lwCentiMM) < Math.abs(a - lwCentiMM) ? b : a);
+
+    const lines = [];
+    lines.push('0','SECTION','2','HEADER',
+        '9','$INSUNITS','70','4',
+        '9','$LWDISPLAY','290','1',
+        '0','ENDSEC');
+    lines.push('0','SECTION','2','TABLES',
+        '0','TABLE','2','LTYPE','70','1',
+        '0','LTYPE','2','CONTINUOUS','70','0','3','Solid line','72','65','73','0','40','0.0',
+        '0','ENDTAB',
+        '0','TABLE','2','LAYER','70','1',
+        '0','LAYER','2','CONTORN','70','0','62','1','6','CONTINUOUS',
+        '370', lineWeightCentiMM.toString(),
+        '0','ENDTAB','0','ENDSEC');
+    lines.push('0','SECTION','2','BLOCKS','0','ENDSEC');
+    lines.push('0','SECTION','2','ENTITIES');
+
+    for (const item of layout) {
+        lines.push('0','LWPOLYLINE',
+            '8','CONTORN','62','1',
+            '370', lineWeightCentiMM.toString(),
+            '90', item.path.length.toString(),
+            '70','1');
+        // DXF Y axis is flipped: use paperH - y
+        for (const p of item.path) {
+            const x = (p.x + item.tx).toFixed(4);
+            const y = (paperH - (p.y + item.ty)).toFixed(4);
+            lines.push('10', x, '20', y);
+        }
+    }
+    lines.push('0','ENDSEC','0','EOF');
+    downloadFile(lines.join('\n'), getTimestampFilename('traçats_') + '.dxf', 'application/dxf');
+}
+
+// ===== COLLAGE PDF =====
+function downloadGroupCollagePDF(group, paperW, paperH) {
+    const layout = buildCollageLayout(group, paperW, paperH);
+    if (layout.length === 0) { alert('No s\'han pogut obtenir els contorns del grup.'); return; }
+    const lineWidth = parseFloat(DOM.lineWidthInput.value) || 0.025;
+    const mmToPt = 72 / 25.4;
+    const pdfW = (paperW * mmToPt).toFixed(3);
+    const pdfH = (paperH * mmToPt).toFixed(3);
+    const pdfLW = (lineWidth * mmToPt).toFixed(4);
+
+    let streamContent = `q\n/GS1 gs\n1 0 0 RG\n2 J\n1 j\n`;
+    for (const item of layout) {
+        const first = item.path[0];
+        const fx = ((first.x + item.tx) * mmToPt).toFixed(3);
+        const fy = ((paperH - (first.y + item.ty)) * mmToPt).toFixed(3);
+        streamContent += `${fx} ${fy} m\n`;
+        for (let i = 1; i < item.path.length; i++) {
+            const px = ((item.path[i].x + item.tx) * mmToPt).toFixed(3);
+            const py = ((paperH - (item.path[i].y + item.ty)) * mmToPt).toFixed(3);
+            streamContent += `${px} ${py} l\n`;
+        }
+        streamContent += `h\nS\n`;
+    }
+    streamContent += `Q\n`;
+
+    const obj5 = `5 0 obj\n<< /Type /ExtGState /LW ${pdfLW} /LC 1 /LJ 1 >>\nendobj\n`;
+    const obj1 = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
+    const obj2 = `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`;
+    const obj3 = `3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 ${pdfW} ${pdfH}]\n/Contents 4 0 R\n/Resources <<\n  /ProcSet [/PDF]\n  /ExtGState << /GS1 5 0 R >>\n>>\n>>\nendobj\n`;
+    const obj4 = `4 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}endstream\nendobj\n`;
+
+    const header = `%PDF-1.4\n`;
+    const off1 = header.length;
+    const off2 = off1 + obj1.length;
+    const off3 = off2 + obj2.length;
+    const off4 = off3 + obj3.length;
+    const off5 = off4 + obj4.length;
+    const xrefOffset = off5 + obj5.length;
+    const fmt = (n) => n.toString().padStart(10, '0');
+    const xref = [`xref`,`0 6`,`0000000000 65535 f `,`${fmt(off1)} 00000 n `,`${fmt(off2)} 00000 n `,`${fmt(off3)} 00000 n `,`${fmt(off4)} 00000 n `,`${fmt(off5)} 00000 n `,``].join('\n');
+    const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+    downloadFile(header + obj1 + obj2 + obj3 + obj4 + obj5 + xref + trailer, getTimestampFilename('traçats_') + '.pdf', 'application/pdf');
 }
 
 function downloadSVG() {
@@ -2552,6 +3009,491 @@ function downloadFile(content, filename, mimeType) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+// ===== GROUP ZONE DRAWING =====
+function drawGroupZones(ctx) {
+    groups.forEach(group => {
+        if (!group.cropRect) return;
+        const r = group.cropRect;
+        const x1 = Math.min(r.x1, r.x2), x2 = Math.max(r.x1, r.x2);
+        const y1 = Math.min(r.y1, r.y2), y2 = Math.max(r.y1, r.y2);
+        ctx.save();
+        ctx.fillStyle = group.zoneColor;
+        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+        ctx.strokeStyle = 'rgba(0,180,70,0.6)';
+        ctx.lineWidth = getScaledLineWidth(1.5);
+        ctx.setLineDash([5 * getScaledLineWidth(1), 3 * getScaledLineWidth(1)]);
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        ctx.setLineDash([]);
+        // Group name label
+        const fontSize = getScaledLineWidth(11);
+        ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
+        ctx.fillStyle = 'rgba(0,220,100,0.9)';
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.fillText(group.name, x1 + getScaledLineWidth(5), y1 + getScaledLineWidth(15));
+        ctx.restore();
+    });
+}
+
+// ===== UPDATE PANEL BUTTONS VISIBILITY =====
+function updateCspButtons() {
+    const guardarBtn = document.getElementById('cspGuardarBtn');
+    const arxivarBtn = document.getElementById('cspArxivarBtn');
+    
+    guardarBtn.style.display = activeEditContourIndex >= 0 ? 'block' : 'none';
+    
+    if (selectedForArchive.size >= 2) {
+        arxivarBtn.style.display = 'block';
+        arxivarBtn.textContent = `📁 Arxivar ${selectedForArchive.size} contorns seleccionats`;
+        arxivarBtn.disabled = false;
+    } else if (selectedForArchive.size === 1) {
+        arxivarBtn.style.display = 'block';
+        arxivarBtn.textContent = `Selecciona més contorns per arxivar`;
+        arxivarBtn.disabled = true;
+    } else {
+        arxivarBtn.style.display = 'none';
+    }
+}
+
+// ===== ACTIVATE CONTOUR FOR EDITING =====
+function activateContourForEditing(index) {
+    if (index < 0 || index >= allDetectedContours.length) return;
+
+    // If already editing another, auto-save it first
+    if (activeEditContourIndex >= 0 && activeEditContourIndex !== index) {
+        saveActiveContour(true); // silent save
+    }
+    
+    activeEditContourIndex = index;
+
+    const saved = contourSavedStates[index];
+    if (saved && saved.params) {
+        // Restore saved params into sliders
+        DOM.thresholdSlider.value = saved.params.threshold;
+        DOM.thresholdValue.textContent = saved.params.threshold;
+        DOM.simplifySlider.value = saved.params.simplify;
+        DOM.smoothSlider.value = saved.params.smooth;
+        DOM.smoothValue.textContent = parseFloat(saved.params.smooth).toFixed(2);
+        DOM.smoothMode.value = saved.params.smoothMode;
+        DOM.offsetSlider.value = saved.params.offset;
+        DOM.offsetValue.textContent = parseFloat(saved.params.offset).toFixed(1);
+        useMiterJoin = saved.params.useMiterJoin;
+        DOM.joinTypeBtn.classList.toggle('btn-desa', useMiterJoin);
+        DOM.joinTypeBtn.style.borderColor = useMiterJoin ? '#000000' : '#4fa3ff';
+        DOM.joinTypeBtn.style.color = useMiterJoin ? '#000000' : '#4fa3ff';
+        rawDetectedContour = saved.rawContour ? [...saved.rawContour] : allDetectedContours[index];
+        userEditedContour = saved.params.userEditedContour ? [...saved.params.userEditedContour] : null;
+    } else {
+        // Use raw detected contour — reset sliders to defaults so each contour starts clean
+        rawDetectedContour = allDetectedContours[index];
+        userEditedContour = null;
+        DOM.smoothSlider.value = 0;
+        DOM.smoothValue.textContent = '0';
+        DOM.smoothMode.value = 'normal';
+        DOM.offsetSlider.value = 0;
+        DOM.offsetValue.textContent = '0.0';
+        useMiterJoin = false;
+        DOM.joinTypeBtn.classList.remove('btn-desa');
+        DOM.joinTypeBtn.style.borderColor = '#4fa3ff';
+        DOM.joinTypeBtn.style.color = '#4fa3ff';
+    }
+
+    const tol = parseFloat(DOM.simplifySlider.value) || 2;
+    initialDetectedContour = simplifyContour(rawDetectedContour, tol);
+
+    DOM.editBtn.disabled = false;
+    DOM.restoreContourBtn.disabled = !userEditedContour;
+
+    // Render
+    if (isEditMode) {
+        isEditMode = false;
+        DOM.editBtn.textContent = 'Editar';
+        DOM.editBtn.classList.remove('btn-desa');
+        resetEditTransform();
+    }
+    processImage(false);
+
+    // Update item styles in panel
+    document.querySelectorAll('.csp-item').forEach((el, i) => {
+        el.classList.toggle('editing', i === index);
+    });
+
+    // Update panel subtitle
+    document.getElementById('cspPanelSubtitle').textContent =
+        `✏ Editant Contorn ${index + 1} — ajusta els controls i fes "Guardar"`;
+    
+    updateCspButtons();
+}
+
+// ===== SAVE ACTIVE CONTOUR =====
+function saveActiveContour(silent = false) {
+    if (activeEditContourIndex < 0) return;
+    
+    // If in edit mode, save the edits first
+    if (isEditMode) {
+        userEditedContour = [...contourPath];
+        isEditMode = false;
+        DOM.editBtn.textContent = 'Editar';
+        DOM.editBtn.classList.remove('btn-desa');
+        processImage(false);
+    }
+
+    const idx = activeEditContourIndex;
+    contourSavedStates[idx] = {
+        contourPath: contourPath ? [...contourPath] : null,
+        rawContour: rawDetectedContour ? [...rawDetectedContour] : null,
+        params: {
+            threshold: DOM.thresholdSlider.value,
+            simplify: DOM.simplifySlider.value,
+            smooth: DOM.smoothSlider.value,
+            smoothMode: DOM.smoothMode.value,
+            offset: DOM.offsetSlider.value,
+            useMiterJoin: useMiterJoin,
+            userEditedContour: userEditedContour ? [...userEditedContour] : null
+        }
+    };
+
+    // Mark item as saved in list
+    const items = document.querySelectorAll('.csp-item');
+    if (items[idx]) {
+        items[idx].classList.add('saved');
+        items[idx].classList.remove('editing');
+        const savedBadge = items[idx].querySelector('.csp-saved-badge');
+        if (savedBadge) savedBadge.style.display = 'inline';
+    }
+
+    activeEditContourIndex = -1;
+
+    if (!silent) {
+        document.getElementById('cspPanelSubtitle').textContent = 'Doble clic per editar · Clic per seleccionar';
+        updateCspButtons();
+        drawAllContoursOverlay(allDetectedContours, -1);
+    }
+}
+
+// ===== TOGGLE ARCHIVE SELECTION =====
+function toggleArchiveSelection(index) {
+    if (selectedForArchive.has(index)) {
+        selectedForArchive.delete(index);
+    } else {
+        selectedForArchive.add(index);
+    }
+    // Update item visual
+    const items = document.querySelectorAll('.csp-item');
+    if (items[index]) {
+        items[index].classList.toggle('archive-selected', selectedForArchive.has(index));
+        const cb = items[index].querySelector('.csp-checkbox');
+        if (cb) {
+            cb.classList.toggle('checked', selectedForArchive.has(index));
+        }
+    }
+    updateCspButtons();
+}
+
+// ===== ARCHIVE SELECTED CONTOURS =====
+function archiveSelectedContours() {
+    if (selectedForArchive.size < 2) return;
+
+    const contourItems = [];
+    selectedForArchive.forEach(index => {
+        const saved = contourSavedStates[index];
+        const color = CONTOUR_COLORS[index % CONTOUR_COLORS.length];
+        const rawC = saved ? saved.rawContour : allDetectedContours[index];
+        contourItems.push({
+            index,
+            color,
+            savedState: saved || {
+                contourPath: null,
+                rawContour: rawC,
+                params: {
+                    threshold: DOM.thresholdSlider.value,
+                    simplify: DOM.simplifySlider.value,
+                    smooth: '0',
+                    smoothMode: 'normal',
+                    offset: '0',
+                    useMiterJoin: false,
+                    userEditedContour: null
+                }
+            }
+        });
+    });
+
+    // Pick a zone color cycling through green hues
+    const hue = 110 + (groups.length * 35) % 120;
+    const group = {
+        id: nextGroupId++,
+        name: `Grup ${groups.length + 1}`,
+        contourItems,
+        cropRect: cropRect ? { ...cropRect } : null,
+        zoneColor: `hsla(${hue}, 65%, 45%, 0.22)`
+    };
+    groups.push(group);
+
+    renderGroupsBar();
+
+    // Clear selection
+    selectedForArchive.clear();
+    document.querySelectorAll('.csp-item').forEach(el => {
+        el.classList.remove('archive-selected');
+        const cb = el.querySelector('.csp-checkbox');
+        if (cb) cb.classList.remove('checked');
+    });
+
+    updateCspButtons();
+    drawAllContoursOverlay(allDetectedContours, -1);
+
+    // Feedback
+    const subtitle = document.getElementById('cspPanelSubtitle');
+    subtitle.textContent = `✓ ${group.name} creat amb ${contourItems.length} contorns`;
+    setTimeout(() => {
+        subtitle.textContent = 'Doble clic per editar · Clic per seleccionar';
+    }, 2500);
+}
+
+// ===== RENDER GROUPS BAR =====
+function renderGroupsBar() {
+    const bar = document.getElementById('groupsBar');
+    const layout = document.querySelector('.layout');
+    if (!bar) return;
+
+    bar.innerHTML = '';
+
+    if (groups.length === 0) {
+        bar.style.display = 'none';
+        layout.classList.remove('has-groups');
+        return;
+    }
+
+    bar.style.display = 'flex';
+    layout.classList.add('has-groups');
+
+    const label = document.createElement('span');
+    label.className = 'groups-bar-label';
+    label.textContent = 'Grups:';
+    bar.appendChild(label);
+
+    groups.forEach(group => {
+        const pill = document.createElement('button');
+        pill.className = 'group-pill';
+        const dotColor = group.zoneColor.replace(/hsla?\([^)]+\)/, '').trim() || '#4caf82';
+        pill.innerHTML = `
+            <span class="group-pill-dot" style="background:${group.zoneColor.replace('0.22', '0.85')}"></span>
+            ${group.name}
+            <span class="group-pill-count">${group.contourItems.length}</span>
+        `;
+        pill.addEventListener('click', () => openGroupInPanel(group.id));
+        bar.appendChild(pill);
+    });
+
+    // Redraw canvas to show all group zones
+    if (imageObj && allDetectedContours.length > 0) {
+        drawAllContoursOverlay(allDetectedContours, -1);
+    } else if (imageObj) {
+        drawInitialOverlay();
+    }
+}
+
+// ===== OPEN GROUP IN PANEL =====
+function openGroupInPanel(groupId) {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    activeExportGroupId = groupId;
+
+    const panel = document.getElementById('contourSelectionPanel');
+    const list = document.getElementById('cspList');
+
+    document.getElementById('cspPanelTitle').textContent = group.name;
+    document.getElementById('cspPanelSubtitle').textContent =
+        `${group.contourItems.length} contorns arxivats`;
+
+    list.innerHTML = '';
+
+    group.contourItems.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'csp-item saved';
+
+        const saved = item.savedState;
+        const tol = saved && saved.params ? parseFloat(saved.params.simplify) || 2 : 2;
+        const rawC = saved ? saved.rawContour : null;
+        const c = rawC ? simplifyContour(rawC, tol) : null;
+        const bb = rawC ? getBoundingBoxMM(rawC) : null;
+        const bbText = bb
+            ? (scaleFactorMMPerPixel > 0 ? `${bb.w} × ${bb.h} mm` : `${bb.w} × ${bb.h}`)
+            : '';
+
+        el.innerHTML = `
+            <div class="csp-swatch" style="background:${item.color}"></div>
+            <div class="csp-info">
+                <strong>Contorn ${item.index + 1}</strong>
+                <span class="csp-saved-badge" style="display:inline">✓ Guardat</span><br>
+                ${c ? c.length : '–'} punts${bbText ? ' · ' + bbText : ''}
+            </div>`;
+
+        list.appendChild(el);
+    });
+
+    // Hide action buttons in group view
+    document.getElementById('cspGuardarBtn').style.display = 'none';
+    document.getElementById('cspArxivarBtn').style.display = 'none';
+
+    panel.classList.add('visible');
+
+    // Draw the group's zone and contours on canvas
+    if (imageObj) {
+        drawInitialOverlay();
+        const ctx = DOM.overlayCanvas.getContext('2d');
+
+        // Highlight this group's zone more prominently
+        if (group.cropRect) {
+            const r = group.cropRect;
+            const x1 = Math.min(r.x1, r.x2), x2 = Math.max(r.x1, r.x2);
+            const y1 = Math.min(r.y1, r.y2), y2 = Math.max(r.y1, r.y2);
+            ctx.save();
+            ctx.fillStyle = group.zoneColor.replace('0.22', '0.35');
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+            ctx.strokeStyle = 'rgba(0,200,80,0.85)';
+            ctx.lineWidth = getScaledLineWidth(2.5);
+            ctx.setLineDash([7 * getScaledLineWidth(1), 4 * getScaledLineWidth(1)]);
+            ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+            ctx.setLineDash([]);
+            const fontSize = getScaledLineWidth(13);
+            ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
+            ctx.fillStyle = 'rgba(0,230,100,1)';
+            ctx.globalAlpha = 1;
+            ctx.fillText(group.name, x1 + getScaledLineWidth(6), y1 + getScaledLineWidth(18));
+            ctx.restore();
+        }
+
+        // Draw each contour in the group
+        group.contourItems.forEach(item => {
+            const saved = item.savedState;
+            const path = saved && saved.contourPath ? saved.contourPath :
+                (saved && saved.rawContour ? simplifyContour(saved.rawContour, 2) : null);
+            if (!path || path.length < 2) return;
+            ctx.save();
+            ctx.strokeStyle = item.color;
+            ctx.lineWidth = getScaledLineWidth(2.5);
+            ctx.globalAlpha = 0.95;
+            ctx.shadowColor = item.color;
+            ctx.shadowBlur = 6 * getScaledLineWidth(1);
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let j = 1; j < path.length; j++) ctx.lineTo(path[j].x, path[j].y);
+            ctx.closePath();
+            ctx.stroke();
+            // Label
+            let cx = 0, cy = 0;
+            for (const p of path) { cx += p.x; cy += p.y; }
+            cx /= path.length; cy /= path.length;
+            const fs = getScaledLineWidth(13);
+            ctx.shadowBlur = 0;
+            ctx.font = `bold ${fs}px Montserrat, sans-serif`;
+            ctx.fillStyle = item.color;
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = getScaledLineWidth(3);
+            ctx.strokeText(item.index + 1, cx, cy);
+            ctx.fillText(item.index + 1, cx, cy);
+            ctx.restore();
+        });
+    }
+}
+
+// ===== RE-DETECT ALL CONTOURS (helper for threshold slider during editing) =====
+function redetectAllContours() {
+    if (!imageObj) return [];
+    const tempCanvas = document.createElement('canvas');
+    const ctxTemp = tempCanvas.getContext('2d');
+    tempCanvas.width = imageObj.width;
+    tempCanvas.height = imageObj.height;
+    ctxTemp.drawImage(imageObj, 0, 0, imageObj.width, imageObj.height);
+    const imageData = ctxTemp.getImageData(0, 0, imageObj.width, imageObj.height);
+    const data = imageData.data;
+    const W = imageObj.width, H = imageObj.height;
+    const threshold = parseInt(DOM.thresholdSlider.value);
+
+    const gray = new Float32Array(W * H);
+    for (let i = 0; i < data.length; i += 4) {
+        gray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    }
+    let grayMin = 255, grayMax = 0;
+    for (let i = 0; i < gray.length; i++) {
+        if (gray[i] < grayMin) grayMin = gray[i];
+        if (gray[i] > grayMax) grayMax = gray[i];
+    }
+    const grayRange = grayMax - grayMin || 1;
+    const stretched = new Float32Array(W * H);
+    for (let i = 0; i < gray.length; i++) {
+        stretched[i] = ((gray[i] - grayMin) / grayRange) * 255;
+    }
+    let rx0 = 0, ry0 = 0, rx1 = W - 1, ry1 = H - 1;
+    if (cropRect) {
+        rx0 = Math.round(Math.min(cropRect.x1, cropRect.x2));
+        rx1 = Math.round(Math.max(cropRect.x1, cropRect.x2));
+        ry0 = Math.round(Math.min(cropRect.y1, cropRect.y2));
+        ry1 = Math.round(Math.max(cropRect.y1, cropRect.y2));
+    }
+    const cxSample = ((rx0 + rx1) / 2) | 0, cySample = ((ry0 + ry1) / 2) | 0;
+    const bgSampleIdx = [ry0 * W + rx0, ry0 * W + rx1, ry1 * W + rx0, ry1 * W + rx1];
+    let bgSum = 0;
+    for (const idx of bgSampleIdx) bgSum += stretched[Math.max(0, Math.min(W * H - 1, idx))];
+    const bgBrightness = bgSum / 4;
+    const objBrightness = stretched[cySample * W + cxSample] || 0;
+    const objectIsBrighter = objBrightness > bgBrightness;
+
+    const binary = new Array(W * H).fill(0);
+    for (let i = 0; i < stretched.length; i++) {
+        const isObject = objectIsBrighter ? stretched[i] >= threshold : stretched[i] < threshold;
+        binary[i] = isObject ? 0 : 255;
+    }
+    if (cropRect) {
+        const cx1 = Math.round(Math.min(cropRect.x1, cropRect.x2));
+        const cx2b = Math.round(Math.max(cropRect.x1, cropRect.x2));
+        const cy1 = Math.round(Math.min(cropRect.y1, cropRect.y2));
+        const cy2b = Math.round(Math.max(cropRect.y1, cropRect.y2));
+        for (let py = 0; py < H; py++) {
+            for (let px = 0; px < W; px++) {
+                if (px < cx1 || px > cx2b || py < cy1 || py > cy2b) binary[py * W + px] = 255;
+            }
+        }
+        const edgeW = 3;
+        for (let py = cy1; py <= cy2b; py++) {
+            for (let t = 0; t < edgeW; t++) {
+                if (cx1 + t < W) binary[py * W + (cx1 + t)] = 255;
+                if (cx2b - t >= 0) binary[py * W + (cx2b - t)] = 255;
+            }
+        }
+        for (let px = cx1; px <= cx2b; px++) {
+            for (let t = 0; t < edgeW; t++) {
+                if (cy1 + t < H) binary[(cy1 + t) * W + px] = 255;
+                if (cy2b - t >= 0) binary[(cy2b - t) * W + px] = 255;
+            }
+        }
+    }
+    return detectAllContours(binary, W, H, 10);
+}
+
+// ===== UPDATE PANEL LIST POINT COUNTS =====
+function updatePanelListCounts() {
+    if (!allDetectedContours || !document.getElementById('contourSelectionPanel').classList.contains('visible')) return;
+    const tol = parseFloat(DOM.simplifySlider.value) || 2;
+    document.querySelectorAll('.csp-item').forEach((el, i) => {
+        if (i >= allDetectedContours.length) return;
+        const c = simplifyContour(allDetectedContours[i], tol);
+        const infoEl = el.querySelector('.csp-info');
+        if (infoEl) {
+            // Update the points count text (second line)
+            const lines = infoEl.innerHTML.split('<br>');
+            if (lines.length >= 2) {
+                const oldPts = lines[1];
+                const newPts = (c ? c.length : 0) + ' punts';
+                lines[1] = oldPts.replace(/\d+ punts/, newPts);
+                infoEl.innerHTML = lines.join('<br>');
+            }
+        }
+    });
 }
 
 initListeners();

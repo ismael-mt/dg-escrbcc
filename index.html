@@ -994,6 +994,8 @@ let activeGroupEditItem = null;    // individual item within a group being edite
 let cropRect = null;
 let isCropMode = false;
 let cropDragStart = null;
+let cropClickMode = false; // true cuando estamos esperando el segundo click
+let cropDragDetected = false; // true cuando detectamos movimiento en drag
 
 let calibPoints = [];
 let scaleFactorMMPerPixel = 0;
@@ -1004,6 +1006,7 @@ let draggedPointIndex = -1;
 let hoveredPointIndex = -1;
 const DRAG_THRESHOLD = 8; 
 const CONTOUR_DRAG_THRESHOLD = 8; 
+const CROP_DRAG_DETECT_THRESHOLD = 5; // threshold para detectar que estamos arrastrando
 const VISUAL_LINE_WIDTH = 1; 
 let isEditMode = false; 
 let userEditedContour = null;
@@ -1050,6 +1053,8 @@ function toggleCropMode() {
     if (cropRect) {
         cropRect = null;
         cropDragStart = null;
+        cropClickMode = false;
+        cropDragDetected = false;
         isCropMode = false;
         DOM.cropBtn.textContent = 'Seleccionar zona';
         DOM.cropBtn.classList.remove('btn-desa');
@@ -1072,6 +1077,8 @@ function toggleCropMode() {
         DOM.cropBtn.textContent = 'Seleccionar zona';
         DOM.cropBtn.classList.remove('btn-desa');
         DOM.overlayCanvas.style.cursor = 'default';
+        cropClickMode = false;
+        cropDragDetected = false;
     }
 }
 
@@ -1171,6 +1178,8 @@ function resetAll() {
     cropRect = null;
     isCropMode = false;
     cropDragStart = null;
+    cropClickMode = false;
+    cropDragDetected = false;
     // Reset new state
     contourSavedStates = {};
     groups = [];
@@ -1378,9 +1387,33 @@ function handleMouseDown(event) {
 
     if (isCropMode) {
         const p = getOriginalCoords(event);
+        
+        // Si ya tenemos un primer click, confirmar la selección
+        if (cropClickMode && cropRect) {
+            cropRect = { 
+                x1: cropRect.x1, 
+                y1: cropRect.y1, 
+                x2: p.x, 
+                y2: p.y 
+            };
+            cropClickMode = false;
+            cropDragDetected = false;
+            isCropMode = false;
+            isDragging = false;
+            DOM.cropBtn.textContent = 'Eliminar zona';
+            DOM.cropBtn.classList.add('btn-desa');
+            DOM.overlayCanvas.style.cursor = 'default';
+            drawInitialOverlay();
+            event.preventDefault();
+            return;
+        }
+        
+        // Primer click: establecer el primer punto (sin activar isDragging aún)
         cropDragStart = p;
         cropRect = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
-        isDragging = true;
+        cropClickMode = true;
+        cropDragDetected = false;
+        isDragging = false; // No activar drag aún, detectar en mousemove
         event.preventDefault();
         return;
     }
@@ -1424,6 +1457,28 @@ function handleDragMove(event) {
         editPanX = event.clientX - panStartX;
         editPanY = event.clientY - panStartY;
         applyEditTransform();
+        return;
+    }
+
+    // Detectar si estamos arrastrando en modo selección de zona
+    if (isCropMode && cropClickMode && cropRect && !cropDragDetected) {
+        const p = getOriginalCoords(event);
+        const distMoved = Math.hypot(p.x - cropRect.x1, p.y - cropRect.y1);
+        
+        // Si hay movimiento significativo, activar modo drag
+        if (distMoved > CROP_DRAG_DETECT_THRESHOLD) {
+            cropDragDetected = true;
+            isDragging = true;
+        }
+    }
+
+    // Actualizar el rectángulo en modo click (sin drag aún)
+    if (isCropMode && cropClickMode && cropRect && !isDragging) {
+        let { x: xOriginal, y: yOriginal } = getOriginalCoords(event);
+        xOriginal = Math.max(0, Math.min(imageObj.width, xOriginal));
+        yOriginal = Math.max(0, Math.min(imageObj.height, yOriginal));
+        cropRect = { x1: cropRect.x1, y1: cropRect.y1, x2: xOriginal, y2: yOriginal };
+        drawInitialOverlay();
         return;
     }
 
@@ -1472,6 +1527,8 @@ function handleMouseUp() {
         cropDragStart = null;
         isDragging = false;
         draggedPointIndex = -1;
+        cropClickMode = false;
+        cropDragDetected = false;
         isCropMode = false;
         DOM.cropBtn.textContent = 'Eliminar zona';
         DOM.cropBtn.classList.add('btn-desa');
@@ -3383,6 +3440,8 @@ function archiveSelectedContours() {
     if (cropRect) {
         cropRect = null;
         cropDragStart = null;
+        cropClickMode = false;
+        cropDragDetected = false;
         isCropMode = false;
         DOM.cropBtn.textContent = 'Seleccionar zona';
         DOM.cropBtn.classList.remove('btn-desa');

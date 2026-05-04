@@ -715,13 +715,33 @@ canvas{
 <!-- Groups bottom bar -->
 <div id="groupsBar"></div>
 
+<!-- Group context menu -->
+<div id="groupContextMenu">
+    <div class="group-ctx-item danger" id="groupCtxDelete">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+        </svg>
+        Eliminar grup complet
+    </div>
+</div>
+
 <div class="layout">
 
 <div class="left">
 
 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
     <img src="logo.png" alt="Logo" style="height: 60px; width: auto;">
-    <h1 style="margin: 0;">VECTORITZACIÓ DE CONTORNS</h1>
+    <h1 style="margin: 0; flex: 1;">VECTORITZACIÓ DE CONTORNS</h1>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+        <button id="sessionSaveBtn" disabled title="Desar l'estat de la sessió en un fitxer">
+            💾 Desar sessió
+        </button>
+        <div id="sessionLoadArea">
+            <input type="file" id="sessionFileInput" accept=".radha">
+            <button id="sessionLoadBtn">📂 Carregar sessió</button>
+        </div>
+        <div id="sessionFeedback"></div>
+    </div>
 </div>
 <br>
 
@@ -1046,6 +1066,7 @@ const DOM = {
     zoomOutBtn: document.getElementById('zoomOutBtn'),
     zoomResetBtn: document.getElementById('zoomResetBtn'),
     zoomLabel: document.getElementById('zoomLabel'),
+    sessionSaveBtn: document.getElementById('sessionSaveBtn'),
 };    
 
 function toggleCropMode() {
@@ -1262,6 +1283,7 @@ function handleImageLoad(e) {
                 DOM.autoThresholdBtn.disabled = false;
                 DOM.cropBtn.disabled = false;
                 updateEditBtnForThreshold();
+                DOM.sessionSaveBtn.disabled = false;
             };
             imageObj.src = event.target.result;
         };
@@ -3594,7 +3616,24 @@ function renderGroupsBar() {
 
         pill.dataset.groupId = group.id;
         bar.appendChild(pill);
-    });
+
+        // Right-click context menu
+        pill.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const menu = document.getElementById('groupContextMenu');
+            menu._targetGroupId = group.id;
+            // Position near cursor, keeping inside viewport
+            const menuW = 200, menuH = 50;
+            let x = e.clientX, y = e.clientY;
+            if (x + menuW > window.innerWidth)  x = window.innerWidth - menuW - 8;
+            if (y + menuH > window.innerHeight) y = e.clientY - menuH - 8;
+            menu.style.left = x + 'px';
+            menu.style.top  = y + 'px';
+            menu.classList.add('visible');
+        });
+
+    }); // end groups.forEach
 
     // Redraw canvas to show all group zones
     if (imageObj && allDetectedContours.length > 0) {
@@ -4283,6 +4322,7 @@ initListeners();
 })();
 </script>
 
+
 <style>
 #reportBtn {
     position: fixed;
@@ -4532,6 +4572,79 @@ initListeners();
 }
 #reportFeedback.ok  { color: #4caf82; }
 #reportFeedback.err { color: #ff6b6b; }
+
+/* Group context menu */
+#groupContextMenu {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    background: #252525;
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    min-width: 180px;
+    padding: 6px 0;
+    font-family: 'Montserrat', sans-serif;
+}
+#groupContextMenu.visible {
+    display: block;
+}
+.group-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s;
+    white-space: nowrap;
+}
+.group-ctx-item:hover {
+    background: rgba(255,255,255,0.06);
+}
+.group-ctx-item.danger {
+    color: #ff6b6b;
+}
+.group-ctx-item.danger:hover {
+    background: rgba(255,60,60,0.12);
+}
+
+/* Session save/load — inline with header */
+#sessionSaveBtn,
+#sessionLoadBtn {
+    width: 140px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    border-color: #4fa3ff;
+    color: #4fa3ff;
+}
+#sessionSaveBtn::before,
+#sessionLoadBtn::before { background: #4fa3ff; }
+#sessionLoadArea {
+    position: relative;
+}
+#sessionLoadArea input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+}
+#sessionFeedback {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-align: right;
+    min-height: 14px;
+}
+#sessionFeedback.ok  { color: #4caf82; }
+#sessionFeedback.err { color: #ff6b6b; }
 </style>
 
 <button id="reportBtn" title="Reportar un error o suggerir millora">
@@ -4744,6 +4857,284 @@ initListeners();
             feedback.className    = 'err';
             submitBtn.disabled    = false;
             submitBtn.textContent = 'Enviar comentari';
+        }
+    });
+})();
+</script>
+
+<script>
+// ===== SESSION SAVE / LOAD =====
+(function() {
+    const SESSION_VERSION = 1;
+    const EXT = '.radha';
+
+    const saveBtn     = document.getElementById('sessionSaveBtn');
+    const fileInput   = document.getElementById('sessionFileInput');
+    const feedback    = document.getElementById('sessionFeedback');
+
+    function setFeedback(msg, type) {
+        feedback.textContent = msg;
+        feedback.className   = type || '';
+        if (msg) setTimeout(() => { feedback.textContent = ''; feedback.className = ''; }, 3500);
+    }
+
+    // ---- SERIALIZE ----
+    function serializeSession() {
+        // Image as base64 data URL (already stored in imageObj.src when loaded via FileReader)
+        const imageSrc = (imageObj && imageObj.src && imageObj.src.startsWith('data:')) ? imageObj.src : null;
+
+        // contourSavedStates: keys are numeric indices, values have rawContour (array of {x,y}),
+        // contourPath (array of {x,y}), and params object — all plain JSON-serializable.
+        const savedStatesArr = Object.entries(contourSavedStates).map(([k, v]) => ({
+            key: Number(k),
+            rawContour:   v.rawContour   || null,
+            contourPath:  v.contourPath  || null,
+            params: v.params || null
+        }));
+
+        // groups: each group has id, name, zoneColor, cropRect, contourItems array
+        // contourItems each have uid, index, color, savedState (same structure)
+        const groupsData = groups.map(g => ({
+            id:   g.id,
+            name: g.name,
+            zoneColor: g.zoneColor,
+            cropRect: g.cropRect || null,
+            contourItems: g.contourItems.map(item => ({
+                uid:   item.uid,
+                index: item.index,
+                color: item.color,
+                savedState: item.savedState ? {
+                    rawContour:  item.savedState.rawContour  || null,
+                    contourPath: item.savedState.contourPath || null,
+                    params: item.savedState.params || null
+                } : null
+            }))
+        }));
+
+        return {
+            version:              SESSION_VERSION,
+            image:                imageSrc,
+            calibPoints:          calibPoints,
+            scaleFactorMMPerPixel: scaleFactorMMPerPixel,
+            calibDistance:        DOM.calibDistanceInput.value,
+            threshold:            DOM.thresholdSlider.value,
+            simplify:             DOM.simplifySlider.value,
+            smooth:               DOM.smoothSlider.value,
+            smoothMode:           DOM.smoothMode.value,
+            offset:               DOM.offsetSlider.value,
+            useMiterJoin:         useMiterJoin,
+            lineWidth:            DOM.lineWidthInput.value,
+            paperWidth:           DOM.paperWidthInput.value,
+            paperHeight:          DOM.paperHeightInput.value,
+            allDetectedContours:  allDetectedContours,
+            contourSavedStates:   savedStatesArr,
+            contourPath:          contourPath   || null,
+            initialDetectedContour: initialDetectedContour || null,
+            userEditedContour:    userEditedContour || null,
+            cropRect:             cropRect || null,
+            groups:               groupsData,
+            nextGroupId:          nextGroupId,
+            nextContourItemId:    nextContourItemId
+        };
+    }
+
+    saveBtn.addEventListener('click', () => {
+        if (!imageObj) return;
+        try {
+            const data = serializeSession();
+            const json = JSON.stringify(data);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            const now  = new Date();
+            const ts   = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+            a.href     = url;
+            a.download = `sessio_${ts}${EXT}`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setFeedback('✓ Sessió desada correctament', 'ok');
+        } catch(err) {
+            setFeedback('❌ Error en desar: ' + err.message, 'err');
+        }
+    });
+
+    // ---- RESTORE ----
+    document.getElementById('sessionLoadBtn').addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        fileInput.value = '';
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                restoreSession(data);
+            } catch(err) {
+                setFeedback('❌ Fitxer de sessió invàlid: ' + err.message, 'err');
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function restoreSession(data) {
+        if (!data || data.version !== SESSION_VERSION) {
+            setFeedback('❌ Versió de sessió incompatible', 'err'); return;
+        }
+        if (!data.image) {
+            setFeedback('❌ El fitxer no conté cap imatge', 'err'); return;
+        }
+
+        // Full reset first (without resetting imageObj yet)
+        resetAll();
+
+        // Load image from base64
+        const img = new Image();
+        img.onload = function() {
+            imageObj = img;
+            DOM.overlayCanvas.width  = img.width;
+            DOM.overlayCanvas.height = img.height;
+            DOM.vectorCanvas.width   = img.width;
+            DOM.vectorCanvas.height  = img.height;
+
+            // Restore sliders & inputs
+            DOM.thresholdSlider.value      = data.threshold   || 183;
+            DOM.thresholdValue.textContent = data.threshold   || 183;
+            DOM.simplifySlider.value       = data.simplify    || 2;
+            DOM.smoothSlider.value         = data.smooth      || 0;
+            DOM.smoothValue.textContent    = parseFloat(data.smooth || 0).toFixed(2);
+            DOM.smoothMode.value           = data.smoothMode  || 'normal';
+            DOM.offsetSlider.value         = data.offset      || 0;
+            DOM.offsetValue.textContent    = parseFloat(data.offset || 0).toFixed(1);
+            DOM.lineWidthInput.value       = data.lineWidth   || 0.025;
+            DOM.paperWidthInput.value      = data.paperWidth  || 210;
+            DOM.paperHeightInput.value     = data.paperHeight || 297;
+            DOM.calibDistanceInput.value   = data.calibDistance || '';
+
+            useMiterJoin = !!data.useMiterJoin;
+            DOM.joinTypeBtn.classList.toggle('btn-desa', useMiterJoin);
+            DOM.joinTypeBtn.textContent = useMiterJoin ? 'Cantonades arrodonides' : 'Cantonades angulars';
+
+            // Restore calibration
+            calibPoints           = data.calibPoints || [];
+            scaleFactorMMPerPixel = data.scaleFactorMMPerPixel || 0;
+            const cp = calibPoints.length;
+            DOM.calibStatus.textContent = cp >= 2
+                ? `Escala: ${scaleFactorMMPerPixel.toFixed(4)} mm/px`
+                : `${cp}/2 punts seleccionats`;
+
+            // Restore contours
+            allDetectedContours    = data.allDetectedContours    || [];
+            contourPath            = data.contourPath            || null;
+            initialDetectedContour = data.initialDetectedContour || null;
+            userEditedContour      = data.userEditedContour      || null;
+            cropRect               = data.cropRect               || null;
+
+            // Restore contourSavedStates
+            contourSavedStates = {};
+            (data.contourSavedStates || []).forEach(entry => {
+                contourSavedStates[entry.key] = {
+                    rawContour:  entry.rawContour,
+                    contourPath: entry.contourPath,
+                    params:      entry.params
+                };
+            });
+
+            // Restore groups
+            nextGroupId       = data.nextGroupId       || 1;
+            nextContourItemId = data.nextContourItemId || 1;
+            groups = (data.groups || []).map(g => ({
+                id:   g.id,
+                name: g.name,
+                zoneColor: g.zoneColor,
+                cropRect:  g.cropRect || null,
+                contourItems: (g.contourItems || []).map(item => ({
+                    uid:   item.uid,
+                    index: item.index,
+                    color: item.color,
+                    savedState: item.savedState || null
+                }))
+            }));
+
+            // Re-enable buttons
+            DOM.autoThresholdBtn.disabled = false;
+            DOM.cropBtn.disabled          = false;
+            DOM.sessionSaveBtn.disabled   = false;
+            updateEditBtnForThreshold();
+
+            // Show download section if there's a contour
+            if (contourPath && contourPath.length > 0) {
+                DOM.downloadSection.style.display = 'block';
+            }
+
+            // Render groups bar
+            renderGroupsBar();
+
+            // Draw canvas
+            drawInitialOverlay();
+            if (allDetectedContours.length > 0) {
+                isContourSelectionMode = true;
+                drawAllContoursOverlay(allDetectedContours, -1);
+                openContourSelectionPanel(allDetectedContours);
+            } else if (contourPath && contourPath.length > 0) {
+                processImage(false);
+            }
+
+            setFeedback('✓ Sessió restaurada correctament', 'ok');
+        };
+        img.onerror = () => setFeedback('❌ No s\'ha pogut carregar la imatge de la sessió', 'err');
+        img.src = data.image;
+    }
+})();
+</script>
+
+<script>
+// ===== GROUP CONTEXT MENU =====
+(function() {
+    const menu = document.getElementById('groupContextMenu');
+    const deleteItem = document.getElementById('groupCtxDelete');
+
+    function closeMenu() {
+        menu.classList.remove('visible');
+        menu._targetGroupId = null;
+    }
+
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target)) closeMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeMenu();
+    });
+    // Prevent the menu itself from propagating and closing itself
+    menu.addEventListener('click', (e) => e.stopPropagation());
+
+    deleteItem.addEventListener('click', () => {
+        const gid = menu._targetGroupId;
+        closeMenu();
+        if (gid == null) return;
+
+        // Remove group from the global array
+        groups = groups.filter(g => g.id !== gid);
+
+        // Close panel if it was showing this group
+        if (typeof activeExportGroupId !== 'undefined' && activeExportGroupId === gid) {
+            document.getElementById('contourSelectionPanel').classList.remove('visible');
+            activeExportGroupId = null;
+            if (typeof activeEditGroupId !== 'undefined') activeEditGroupId = null;
+        }
+
+        renderGroupsBar();
+
+        // Redraw canvas
+        if (typeof imageObj !== 'undefined' && imageObj) {
+            if (typeof allDetectedContours !== 'undefined' && allDetectedContours.length > 0) {
+                drawAllContoursOverlay(allDetectedContours, -1);
+            } else {
+                drawInitialOverlay();
+            }
         }
     });
 })();

@@ -860,7 +860,13 @@ canvas{
         <span id="zoomLabel">100%</span>
         <button id="zoomOutBtn">−</button>
         <button id="zoomResetBtn">Reset</button>
-        <button id="toggleCanvasBtn" style="padding: 4px 12px; font-size: 13px; margin-left: auto;">Canviar vista</button>
+        <button id="toggleCanvasBtn" style="padding: 4px 12px; font-size: 13px;">Canviar vista</button>
+        <button id="reportBtn" title="Reportar un error o suggerir millora" style="margin-left: auto;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Reportar
+        </button>
     </div>
     <div id="canvasWrapper" style="padding: 10px;">
         <canvas id="overlayCanvas"></canvas>
@@ -4325,10 +4331,6 @@ initListeners();
 
 <style>
 #reportBtn {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 1000;
     padding: 10px 18px;
     font-size: 13px;
     font-weight: 600;
@@ -4646,13 +4648,6 @@ initListeners();
 #sessionFeedback.ok  { color: #4caf82; }
 #sessionFeedback.err { color: #ff6b6b; }
 </style>
-
-<button id="reportBtn" title="Reportar un error o suggerir millora">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-    Reportar
-</button>
 
 <div id="reportOverlay" role="dialog" aria-modal="true">
     <div id="reportModal">
@@ -5118,6 +5113,11 @@ initListeners();
 
         // Remove group from the global array
         groups = groups.filter(g => g.id !== gid);
+
+        // Renumber remaining groups
+        groups.forEach((group, index) => {
+            group.name = `Grup ${index + 1}`;
+        });
 
         // Close panel if it was showing this group
         if (typeof activeExportGroupId !== 'undefined' && activeExportGroupId === gid) {

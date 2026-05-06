@@ -740,6 +740,7 @@ canvas{
             <input type="file" id="sessionFileInput" accept=".radha">
             <button id="sessionLoadBtn">📂 Carregar sessió</button>
         </div>
+        <div id="autosave-status"></div> 
         <div id="sessionFeedback"></div>
     </div>
 </div>
@@ -5144,25 +5145,13 @@ initListeners();
 </script>
 <style>
 /* Indicador d'autoguardat */
-#autosave-badge {
-    position: fixed;
-    bottom: 70px; /* per sobre de la barra de grups */
-    right: 16px;
-    background: rgba(24, 24, 24, 0.92);
-    color: #f2f2f2;
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-family: 'Montserrat', sans-serif;
+#autosave-status {
+    font-size: 0.75em;
+    color: #4caf82;
     font-weight: 600;
-    z-index: 9990;
-    opacity: 0;
-    transition: opacity 0.5s;
-    pointer-events: none;
-    border: 1px solid #444;
-    backdrop-filter: blur(4px);
+    text-align: right;
+    min-height: 14px;
 }
-#autosave-badge.visible { opacity: 1; }
 </style>
 
 <script>
@@ -5179,20 +5168,10 @@ initListeners();
 
     // ── Badge visual ────────────────────────────────────────
     let badge = null;
-    function getBadge() {
-        if (!badge) {
-            badge = document.createElement('div');
-            badge.id = 'autosave-badge';
-            document.body.appendChild(badge);
-        }
-        return badge;
-    }
-    function showBadge(msg, durationMs = 3000) {
-        const b = getBadge();
-        b.textContent = msg;
-        b.classList.add('visible');
-        clearTimeout(b._t);
-        b._t = setTimeout(() => b.classList.remove('visible'), durationMs);
+    function showBadge(msg) {
+        const el = document.getElementById('autosave-status');
+        if (!el) return;
+        el.innerHTML = msg.replace(/\n/g, '<br>');
     }
 
     // ── API ─────────────────────────────────────────────────
@@ -5228,7 +5207,7 @@ initListeners();
             await cloudPost(estat);
             const hora = new Date().toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
             console.log('[Autoguardat] ✅ Sincronitzat a les ' + hora);
-            showBadge('☁️ Guardat a les ' + hora);
+            showBadge('☁️ Autoguardat a les ' + hora);
         } catch (err) {
             console.warn('[Autoguardat] ⚠️ Error en guardar:', err.message);
             showBadge('⚠️ Error d\'autoguardat');
@@ -5250,7 +5229,7 @@ initListeners();
                 : '(data desconeguda)';
 
             const restaurar = confirm(
-                '☁️ S\'ha trobat una sessió guardada al núvol.\n' +
+                '☁️ S\'ha trobat una sessió guardada.\n' +
                 'Data: ' + savedAt + '\n\n' +
                 '¿Vols restaurar-la?'
             );
@@ -5259,8 +5238,8 @@ initListeners();
                 // Netejem la metadada interna perquè no molesti al restore
                 delete data._autosave;
                 window._restoreSession(data);
-                console.log('[Autoguardat] ✅ Sessió restaurada des del núvol.');
-                showBadge('✅ Sessió restaurada des del núvol', 4000);
+                console.log('[Autoguardat] ✅ Sessió restaurada.');
+                showBadge('✅ Sessió restaurada.\nData: ' + savedAt, 4000);
             } else {
                 console.log('[Autoguardat] Sessió descartada. App iniciada en blanc.');
             }

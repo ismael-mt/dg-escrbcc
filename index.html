@@ -5082,6 +5082,9 @@ initListeners();
         img.onerror = () => setFeedback('❌ No s\'ha pogut carregar la imatge de la sessió', 'err');
         img.src = data.image;
     }
+
+    window._serializeSession = serializeSession;
+    window._restoreSession   = restoreSession;
 })();
 </script>
 
@@ -5139,6 +5142,142 @@ initListeners();
     });
 })();
 </script>
-    
+<style>
+/* Indicador d'autoguardat */
+#autosave-badge {
+    position: fixed;
+    bottom: 70px; /* per sobre de la barra de grups */
+    right: 16px;
+    background: rgba(24, 24, 24, 0.92);
+    color: #f2f2f2;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    z-index: 9990;
+    opacity: 0;
+    transition: opacity 0.5s;
+    pointer-events: none;
+    border: 1px solid #444;
+    backdrop-filter: blur(4px);
+}
+#autosave-badge.visible { opacity: 1; }
+</style>
+
+<script>
+// ============================================================
+// MÒDUL D'AUTOGUARDAT — Cloudflare KV
+// ============================================================
+(function () {
+    // ── CONFIGURACIÓ ── canvia aquests dos valors ───────────
+    const WORKER_URL  = 'https://autosave.ismaelmt-ia.workers.dev'; // ← URL del teu Worker
+    const AUTH_TOKEN  = 'Baby17Meri19';                             // ← ha de coincidir amb AUTH_TOKEN al Worker
+    // ───────────────────────────────────────────────────────
+    const INTERVAL_MS = 60_000; // autoguardat cada 60 segons
+    const EXT         = '.radha';
+
+    // ── Badge visual ────────────────────────────────────────
+    let badge = null;
+    function getBadge() {
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'autosave-badge';
+            document.body.appendChild(badge);
+        }
+        return badge;
+    }
+    function showBadge(msg, durationMs = 3000) {
+        const b = getBadge();
+        b.textContent = msg;
+        b.classList.add('visible');
+        clearTimeout(b._t);
+        b._t = setTimeout(() => b.classList.remove('visible'), durationMs);
+    }
+
+    // ── API ─────────────────────────────────────────────────
+    async function cloudGet() {
+        const resp = await fetch(WORKER_URL + '/session', {
+            method:  'GET',
+            headers: { 'X-Auth-Key': AUTH_TOKEN }
+        });
+        if (!resp.ok) throw new Error('GET /session → ' + resp.status);
+        return resp.json();
+    }
+
+    async function cloudPost(sessionObj) {
+        // Afegim metadades d'autoguardat
+        const payload = Object.assign({}, sessionObj, {
+            _autosave: { savedAt: new Date().toISOString(), ext: EXT }
+        });
+        const resp = await fetch(WORKER_URL + '/session', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Auth-Key': AUTH_TOKEN },
+            body:    JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error('POST /session → ' + resp.status);
+        return resp.json();
+    }
+
+    // ── Autoguardat ─────────────────────────────────────────
+    async function autoguardar() {
+        if (!window._serializeSession) return; // funcions no disponibles encara
+        try {
+            const estat = window._serializeSession();
+            if (!estat.image) return; // no hi ha imatge carregada, no guardar
+            await cloudPost(estat);
+            const hora = new Date().toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
+            console.log('[Autoguardat] ✅ Sincronitzat a les ' + hora);
+            showBadge('☁️ Guardat a les ' + hora);
+        } catch (err) {
+            console.warn('[Autoguardat] ⚠️ Error en guardar:', err.message);
+            showBadge('⚠️ Error d\'autoguardat');
+        }
+    }
+
+    // ── Comprovació en carregar ─────────────────────────────
+    async function checkSessionOnLoad() {
+        try {
+            const data = await cloudGet();
+            if (data.empty || !data.image) {
+                console.log('[Autoguardat] Sense sessió prèvia al núvol.');
+                return;
+            }
+
+            // Eliminem la metadada interna abans de mostrar la data
+            const savedAt = data._autosave && data._autosave.savedAt
+                ? new Date(data._autosave.savedAt).toLocaleString('ca-ES')
+                : '(data desconeguda)';
+
+            const restaurar = confirm(
+                '☁️ S\'ha trobat una sessió guardada al núvol.\n' +
+                'Data: ' + savedAt + '\n\n' +
+                '¿Vols restaurar-la?'
+            );
+
+            if (restaurar && window._restoreSession) {
+                // Netejem la metadada interna perquè no molesti al restore
+                delete data._autosave;
+                window._restoreSession(data);
+                console.log('[Autoguardat] ✅ Sessió restaurada des del núvol.');
+                showBadge('✅ Sessió restaurada des del núvol', 4000);
+            } else {
+                console.log('[Autoguardat] Sessió descartada. App iniciada en blanc.');
+            }
+        } catch (err) {
+            // Silenciós: si el Worker no és accessible, l'app funciona igual
+            console.warn('[Autoguardat] No s\'ha pogut consultar el núvol:', err.message);
+        }
+    }
+
+    // ── Arranc ──────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', async () => {
+        await checkSessionOnLoad();
+        setInterval(autoguardar, INTERVAL_MS);
+        console.log('[Autoguardat] Sistema iniciat. Guardant cada ' + (INTERVAL_MS / 1000) + ' s.');
+    });
+
+})();
+</script>    
 </body>
 </html>

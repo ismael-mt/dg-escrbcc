@@ -862,7 +862,13 @@ canvas{
         <button id="zoomOutBtn">−</button>
         <button id="zoomResetBtn">Reset</button>
         <button id="toggleCanvasBtn" style="padding: 4px 12px; font-size: 13px;">Canviar vista</button>
-        <button id="reportBtn" title="Reportar un error o suggerir millora" style="margin-left: auto;">
+        <button id="statsBtn" title="Resum de traçats i àrea total" style="margin-left: auto;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Estadístiques
+        </button>
+        <button id="reportBtn" title="Reportar un error o suggerir millora" style="margin-left: 8px;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
@@ -5258,5 +5264,590 @@ initListeners();
 
 })();
 </script>    
+<style>
+/* ===== ESTADÍSTIQUES DE TRAÇATS ===== */
+#statsBtn {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 20px;
+    border: 1.5px solid #4caf82;
+    background: #1a2a22;
+    color: #4caf82;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 4px 18px rgba(76,175,130,0.18);
+    transition: background 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
+    overflow: hidden;
+}
+#statsBtn::before { display: none; }
+#statsBtn:hover {
+    background: #4caf82;
+    color: #fff;
+    border-color: #4caf82;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(76,175,130,0.32);
+}
+#statsBtn:active { transform: scale(0.97); }
+
+#statsOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+#statsOverlay.visible { display: flex; }
+
+#statsModal {
+    background: #222;
+    border-radius: 14px;
+    padding: 30px 32px 26px;
+    max-width: 460px;
+    width: 92%;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+    position: relative;
+    color: #f2f2f2;
+    animation: reportSlideIn 0.22s cubic-bezier(.4,0,.2,1);
+    font-family: 'Montserrat', sans-serif;
+}
+#statsModal h2 {
+    margin: 0 0 18px 0;
+    font-size: 1.3em;
+    color: #4caf82;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 400;
+    letter-spacing: 0.07em;
+}
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 11px 14px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.stats-row .stats-label { color: var(--text-muted); font-size: 0.85em; }
+.stats-row .stats-value { font-size: 1.05em; font-weight: 600; color: #f2f2f2; }
+#statsWarning {
+    font-size: 0.8em;
+    color: #ffb347;
+    margin: 10px 0 0;
+    line-height: 1.4;
+}
+#statsExcelBtn,
+#statsImgBtn,
+#statsFillBtn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1.5px solid #4caf82;
+    background: transparent;
+    color: #4caf82;
+    cursor: pointer;
+}
+#statsExcelBtn::before,
+#statsImgBtn::before,
+#statsFillBtn::before { display: none; }
+#statsExcelBtn:hover:not(:disabled),
+#statsImgBtn:hover:not(:disabled),
+#statsFillBtn:hover:not(:disabled) { background: #4caf82; color: #fff; }
+#statsExcelBtn:disabled,
+#statsImgBtn:disabled,
+#statsFillBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+#statsExcelBtn { margin-top: 18px; }
+#statsFeedback {
+    font-size: 0.78em;
+    text-align: right;
+    min-height: 14px;
+    margin-top: 8px;
+    color: var(--text-muted);
+}
+#statsFeedback.ok  { color: #4caf82; }
+#statsFeedback.err { color: #ff6b6b; }
+</style>
+
+<div id="statsOverlay" role="dialog" aria-modal="true">
+    <div id="statsModal">
+        <button class="report-close" id="statsCloseBtn" title="Tancar">&#x2715;</button>
+        <h2>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Resum de traçats
+        </h2>
+
+        <div class="stats-row">
+            <span class="stats-label">Traçats guardats als grups</span>
+            <span class="stats-value" id="statsCount">0</span>
+        </div>
+        <div class="stats-row">
+            <span class="stats-label">Àrea total (mm²)</span>
+            <span class="stats-value" id="statsAreaMM">0</span>
+        </div>
+        <div class="stats-row">
+            <span class="stats-label">Àrea total (cm²)</span>
+            <span class="stats-value" id="statsAreaCM">0</span>
+        </div>
+
+        <p id="statsWarning" style="display:none;"></p>
+
+        <button id="statsExcelBtn">Descarregar Excel</button>
+        <button id="statsImgBtn">Descarregar imatge amb identificadors</button>
+        <button id="statsFillBtn">Descarregar imatge amb àrees pintades</button>
+        <div id="statsFeedback"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// MÒDUL D'ESTADÍSTIQUES DE TRAÇATS + EXPORTACIÓ A EXCEL
+// ============================================================
+(function () {
+    const XLSX_CDN = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+
+    const overlay   = document.getElementById('statsOverlay');
+    const openBtn   = document.getElementById('statsBtn');
+    const closeBtn  = document.getElementById('statsCloseBtn');
+    const excelBtn  = document.getElementById('statsExcelBtn');
+    const imgBtn    = document.getElementById('statsImgBtn');
+    const fillBtn   = document.getElementById('statsFillBtn');
+    const feedback  = document.getElementById('statsFeedback');
+    const warningEl = document.getElementById('statsWarning');
+
+    let lastData = null;
+
+    // ── Àrea d'un polígon tancat (fórmula del sabater), en px² ──
+    function polygonAreaPx(path) {
+        if (!path || path.length < 3) return 0;
+        let a = 0;
+        for (let i = 0, n = path.length; i < n; i++) {
+            const p = path[i], q = path[(i + 1) % n];
+            a += p.x * q.y - q.x * p.y;
+        }
+        return Math.abs(a) / 2;
+    }
+
+    // ── Obté el traçat efectiu d'un contorn guardat ──
+    function getItemPath(item) {
+        const s = item && item.savedState;
+        if (!s) return null;
+        if (s.contourPath && s.contourPath.length > 2) return s.contourPath;
+        if (s.rawContour && s.rawContour.length > 2) {
+            return (typeof simplifyContour === 'function')
+                ? simplifyContour(s.rawContour, 2)
+                : s.rawContour;
+        }
+        return null;
+    }
+
+    // ── Identificador: grup 1 · traçat 1 → "G11".
+    //    Si algun dels dos passa de 9 s'hi posa un guió ("G1-12") per evitar ambigüitat.
+    function buildId(groupNum, itemNum) {
+        return (groupNum > 9 || itemNum > 9)
+            ? 'G' + groupNum + '-' + itemNum
+            : 'G' + groupNum + itemNum;
+    }
+
+    // ── Recull totes les dades de tots els grups ──
+    function collectStats() {
+        const scale = (typeof scaleFactorMMPerPixel !== 'undefined') ? scaleFactorMMPerPixel : 0;
+        const list  = (typeof groups !== 'undefined' && Array.isArray(groups)) ? groups : [];
+        const rows  = [];
+        let totalMM2 = 0, totalPx2 = 0;
+
+        list.forEach((g, gi) => {
+            (g.contourItems || []).forEach((item, i) => {
+                const path   = getItemPath(item);
+                const areaPx = polygonAreaPx(path);
+                const areaMM = scale > 0 ? areaPx * scale * scale : 0;
+                totalPx2 += areaPx;
+                totalMM2 += areaMM;
+                rows.push({
+                    id:      buildId(gi + 1, i + 1),
+                    color:   item.color,
+                    path:    path,
+                    grup:    g.name || ('Grup ' + g.id),
+                    tracat:  'Traçat ' + (i + 1),
+                    punts:   path ? path.length : 0,
+                    areaPx:  areaPx,
+                    areaMM2: areaMM,
+                    areaCM2: areaMM / 100
+                });
+            });
+        });
+
+        return { rows, totalMM2, totalCM2: totalMM2 / 100, totalPx2, scale, numGroups: list.length };
+    }
+
+    const fmt = n => n.toLocaleString('ca-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ── Obre la finestra ──
+    function openModal() {
+        lastData = collectStats();
+        document.getElementById('statsCount').textContent  = lastData.rows.length;
+        document.getElementById('statsAreaMM').textContent = fmt(lastData.totalMM2);
+        document.getElementById('statsAreaCM').textContent = fmt(lastData.totalCM2);
+
+        if (lastData.rows.length === 0) {
+            warningEl.style.display = 'block';
+            warningEl.textContent = 'Encara no hi ha cap traçat guardat en cap grup.';
+            excelBtn.disabled = true;
+        } else if (lastData.scale <= 0) {
+            warningEl.style.display = 'block';
+            warningEl.textContent = '⚠️ Sense calibració (pas 2) no es pot calcular l\'àrea real. Àrea total en píxels: '
+                + fmt(lastData.totalPx2) + ' px².';
+            excelBtn.disabled = false;
+        } else {
+            warningEl.style.display = 'none';
+            excelBtn.disabled = false;
+        }
+
+        imgBtn.disabled = excelBtn.disabled || !(typeof imageObj !== 'undefined' && imageObj);
+        fillBtn.disabled = imgBtn.disabled;
+
+        feedback.textContent = '';
+        feedback.className = '';
+        overlay.classList.add('visible');
+    }
+
+    function closeModal() { overlay.classList.remove('visible'); }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && overlay.classList.contains('visible')) closeModal();
+    });
+
+    // ── Càrrega sota demanda de la llibreria XLSX ──
+    function loadXLSX() {
+        if (window.XLSX) return Promise.resolve(window.XLSX);
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = XLSX_CDN;
+            s.onload  = () => window.XLSX ? resolve(window.XLSX) : reject(new Error('XLSX no disponible'));
+            s.onerror = () => reject(new Error('No s\'ha pogut carregar la llibreria'));
+            document.head.appendChild(s);
+        });
+    }
+
+    // ── Descàrrega de l'Excel ──
+    excelBtn.addEventListener('click', async () => {
+        const data = lastData || collectStats();
+        if (!data.rows.length) return;
+
+        excelBtn.disabled = true;
+        feedback.className = '';
+        feedback.textContent = 'Generant fitxer…';
+
+        try {
+            const XLSXlib = await loadXLSX();
+
+            // Full 1 — Resum
+            const resum = [
+                ['Resum de traçats'],
+                [],
+                ['Data',                    new Date().toLocaleString('ca-ES')],
+                ['Nombre de grups',         data.numGroups],
+                ['Nombre total de traçats', data.rows.length],
+                ['Àrea total (mm²)',        Number(data.totalMM2.toFixed(2))],
+                ['Àrea total (cm²)',        Number(data.totalCM2.toFixed(2))],
+                ['Escala (mm/px)',          data.scale > 0 ? Number(data.scale.toFixed(6)) : 'Sense calibrar']
+            ];
+            const wsResum = XLSXlib.utils.aoa_to_sheet(resum);
+            wsResum['!cols'] = [{ wch: 26 }, { wch: 24 }];
+
+            // Full 2 — Detall
+            const detall = [['ID', 'Grup', 'Traçat', 'Punts', 'Àrea (mm²)', 'Àrea (cm²)']];
+            data.rows.forEach(r => {
+                detall.push([
+                    r.id,
+                    r.grup,
+                    r.tracat,
+                    r.punts,
+                    Number(r.areaMM2.toFixed(2)),
+                    Number(r.areaCM2.toFixed(2))
+                ]);
+            });
+            detall.push([]);
+            detall.push(['TOTAL', '', '', '', Number(data.totalMM2.toFixed(2)), Number(data.totalCM2.toFixed(2))]);
+            const wsDetall = XLSXlib.utils.aoa_to_sheet(detall);
+            wsDetall['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 14 }];
+
+            const wb = XLSXlib.utils.book_new();
+            XLSXlib.utils.book_append_sheet(wb, wsResum,  'Resum');
+            XLSXlib.utils.book_append_sheet(wb, wsDetall, 'Traçats');
+
+            const nom = (typeof getTimestampFilename === 'function')
+                ? getTimestampFilename('estadistiques_') + '.xlsx'
+                : 'estadistiques.xlsx';
+            XLSXlib.writeFile(wb, nom);
+
+            feedback.className = 'ok';
+            feedback.textContent = '✓ Excel descarregat';
+        } catch (err) {
+            console.warn('[Estadístiques] Error generant l\'Excel:', err);
+            feedback.className = 'err';
+            feedback.textContent = '❌ ' + err.message;
+        } finally {
+            excelBtn.disabled = false;
+        }
+    });
+
+    // ── Empaquetat 1-D: reparteix posicions sense solapaments, ──
+    //    mantenint-les tan a prop com es pugui de la posició desitjada (m.d).
+    function packLabels(items, lo, hi, spacing) {
+        const a = [...items].sort((x, y) => x.d - y.d);
+        let cur = lo;
+        a.forEach(m => { m.p = Math.max(m.d, cur); cur = m.p + spacing; });
+        cur = hi;
+        for (let i = a.length - 1; i >= 0; i--) { a[i].p = Math.min(a[i].p, cur); cur = a[i].p - spacing; }
+        a.forEach(m => { m.p = Math.max(lo, Math.min(hi, m.p)); });
+        return a;
+    }
+
+    // ── Descàrrega de la imatge original amb els traçats i els identificadors ──
+    //    Les etiquetes es reparteixen pels quatre marges, unides al traçat
+    //    amb una línia guia, per no tapar la imatge.
+    imgBtn.addEventListener('click', () => {
+        const data = lastData || collectStats();
+        if (!data.rows.length) return;
+        if (typeof imageObj === 'undefined' || !imageObj) {
+            feedback.className = 'err';
+            feedback.textContent = '❌ No hi ha cap imatge carregada';
+            return;
+        }
+
+        try {
+            const W = imageObj.width, H = imageObj.height;
+            const unit = Math.max(1, Math.min(W, H) / 900);
+            const fs   = Math.max(10, 13 * unit);
+            const padX = 4 * unit, padY = 3 * unit;
+            const gap  = 10 * unit;
+
+            const probe = document.createElement('canvas').getContext('2d');
+            probe.font = `bold ${fs}px Montserrat, Arial, sans-serif`;
+            let maxTw = 0;
+            data.rows.forEach(r => { maxTw = Math.max(maxTw, probe.measureText(r.id).width); });
+            const boxW = maxTw + padX * 2;
+            const boxH = fs + padY * 2;
+
+            const mX = boxW + gap * 2;   // marge esquerre/dret
+            const mY = boxH + gap * 2;   // marge superior/inferior
+
+            const cv = document.createElement('canvas');
+            cv.width  = W + mX * 2;
+            cv.height = H + mY * 2;
+            const ctx = cv.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, cv.width, cv.height);
+            ctx.drawImage(imageObj, mX, mY, W, H);
+
+            // 1) Traçats i centroides (en coordenades del llenç)
+            const marks = [];
+            data.rows.forEach(r => {
+                const path = r.path;
+                if (!path || path.length < 2) return;
+
+                ctx.save();
+                ctx.strokeStyle = r.color || '#4fa3ff';
+                ctx.lineWidth = 2.2 * unit;
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(path[0].x + mX, path[0].y + mY);
+                for (let j = 1; j < path.length; j++) ctx.lineTo(path[j].x + mX, path[j].y + mY);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.restore();
+
+                let cx = 0, cy = 0;
+                for (const p of path) { cx += p.x; cy += p.y; }
+                cx /= path.length; cy /= path.length;
+                marks.push({ id: r.id, color: r.color || '#4fa3ff', ix: cx, iy: cy, cx: cx + mX, cy: cy + mY });
+            });
+
+            // 2) Assignació al marge més proper amb espai lliure
+            const spV = boxH + 5 * unit;          // separació vertical (marges L/R)
+            const spH = boxW + 8 * unit;          // separació horitzontal (marges T/B)
+            const cap = {
+                L: Math.max(1, Math.floor(H / spV)),
+                R: Math.max(1, Math.floor(H / spV)),
+                T: Math.max(1, Math.floor(W / spH)),
+                B: Math.max(1, Math.floor(W / spH))
+            };
+            const used = { L: 0, R: 0, T: 0, B: 0 };
+
+            // Els traçats més a prop d'una vora trien primer
+            const order = [...marks].sort((a, b) => {
+                const da = Math.min(a.ix, W - a.ix, a.iy, H - a.iy);
+                const db = Math.min(b.ix, W - b.ix, b.iy, H - b.iy);
+                return da - db;
+            });
+            order.forEach(m => {
+                const prefs = [
+                    { s: 'L', d: m.ix },
+                    { s: 'R', d: W - m.ix },
+                    { s: 'T', d: m.iy },
+                    { s: 'B', d: H - m.iy }
+                ].sort((a, b) => a.d - b.d);
+                const pick = prefs.find(p => used[p.s] < cap[p.s]) || prefs[0];
+                m.side = pick.s;
+                used[pick.s]++;
+            });
+
+            // 3) Repartiment dins de cada marge
+            ['L', 'R'].forEach(side => {
+                const col = marks.filter(m => m.side === side).map(m => (m.d = m.cy, m));
+                packLabels(col, mY + boxH / 2, mY + H - boxH / 2, spV).forEach(m => { m.lx = (side === 'L') ? mX - gap - boxW / 2 : mX + W + gap + boxW / 2; m.ly = m.p; });
+            });
+            ['T', 'B'].forEach(side => {
+                const row = marks.filter(m => m.side === side).map(m => (m.d = m.cx, m));
+                packLabels(row, mX + boxW / 2, mX + W - boxW / 2, spH).forEach(m => { m.lx = m.p; m.ly = (side === 'T') ? mY - gap - boxH / 2 : mY + H + gap + boxH / 2; });
+            });
+
+            // 4) Línies guia i etiquetes
+            ctx.font = `bold ${fs}px Montserrat, Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            marks.forEach(m => {
+                // Punt d'ancoratge a l'etiqueta i punt de gir dins del marge
+                let ax, ay, bx, by;
+                if (m.side === 'L')      { ax = m.lx + boxW / 2; ay = m.ly; bx = mX - gap / 2;      by = m.ly; }
+                else if (m.side === 'R') { ax = m.lx - boxW / 2; ay = m.ly; bx = mX + W + gap / 2;  by = m.ly; }
+                else if (m.side === 'T') { ax = m.lx; ay = m.ly + boxH / 2; bx = m.lx; by = mY - gap / 2; }
+                else                     { ax = m.lx; ay = m.ly - boxH / 2; bx = m.lx; by = mY + H + gap / 2; }
+
+                ctx.save();
+                ctx.strokeStyle = m.color;
+                ctx.globalAlpha = 0.85;
+                ctx.lineWidth = 1.2 * unit;
+                ctx.beginPath();
+                ctx.moveTo(ax, ay);
+                ctx.lineTo(bx, by);
+                ctx.lineTo(m.cx, m.cy);
+                ctx.stroke();
+
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = m.color;
+                ctx.beginPath();
+                ctx.arc(m.cx, m.cy, 2.6 * unit, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1 * unit;
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = m.color;
+                ctx.lineWidth = 1.4 * unit;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(m.lx - boxW / 2, m.ly - boxH / 2, boxW, boxH, 3 * unit);
+                else ctx.rect(m.lx - boxW / 2, m.ly - boxH / 2, boxW, boxH);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#111111';
+                ctx.fillText(m.id, m.lx, m.ly + 0.5 * unit);
+                ctx.restore();
+            });
+
+            const nom = (typeof getTimestampFilename === 'function')
+                ? getTimestampFilename('traçats_identificats_') + '.png'
+                : 'tracats_identificats.png';
+
+            cv.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = nom;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                feedback.className = 'ok';
+                feedback.textContent = '✓ Imatge descarregada';
+            }, 'image/png');
+        } catch (err) {
+            console.warn('[Estadístiques] Error generant la imatge:', err);
+            feedback.className = 'err';
+            feedback.textContent = '❌ ' + err.message;
+        }
+    });
+
+    // ── Descàrrega de la imatge original (sense marges) amb les àrees ──
+    //    dels traçats pintades en vermell translúcid, sense etiquetes.
+    fillBtn.addEventListener('click', () => {
+        const data = lastData || collectStats();
+        if (!data.rows.length) return;
+        if (typeof imageObj === 'undefined' || !imageObj) {
+            feedback.className = 'err';
+            feedback.textContent = '❌ No hi ha cap imatge carregada';
+            return;
+        }
+
+        try {
+            const W = imageObj.width, H = imageObj.height;
+            const unit = Math.max(1, Math.min(W, H) / 900);
+
+            const cv = document.createElement('canvas');
+            cv.width = W; cv.height = H;
+            const ctx = cv.getContext('2d');
+            ctx.drawImage(imageObj, 0, 0, W, H);
+
+            // Un sol traçat acumulat amb totes les àrees: així les zones
+            // superposades no s'enfosqueixen i els contorns interiors
+            // (forats) queden buits gràcies a la regla evenodd.
+            ctx.beginPath();
+            data.rows.forEach(r => {
+                const path = r.path;
+                if (!path || path.length < 3) return;
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let j = 1; j < path.length; j++) ctx.lineTo(path[j].x, path[j].y);
+                ctx.closePath();
+            });
+            ctx.save();
+            ctx.fillStyle = 'rgba(230, 30, 30, 0.38)';
+            ctx.fill('evenodd');
+            ctx.strokeStyle = 'rgba(200, 0, 0, 0.9)';
+            ctx.lineWidth = 1.6 * unit;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            ctx.restore();
+
+            const nom = (typeof getTimestampFilename === 'function')
+                ? getTimestampFilename('àrees_pintades_') + '.png'
+                : 'arees_pintades.png';
+
+            cv.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = nom;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                feedback.className = 'ok';
+                feedback.textContent = '✓ Imatge descarregada';
+            }, 'image/png');
+        } catch (err) {
+            console.warn('[Estadístiques] Error pintant les àrees:', err);
+            feedback.className = 'err';
+            feedback.textContent = '❌ ' + err.message;
+        }
+    });
+})();
+</script>
+
 </body>
 </html>

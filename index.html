@@ -5456,9 +5456,7 @@ initListeners();
     // ── Identificador: grup 1 · traçat 1 → "G11".
     //    Si algun dels dos passa de 9 s'hi posa un guió ("G1-12") per evitar ambigüitat.
     function buildId(groupNum, itemNum) {
-        return (groupNum > 9 || itemNum > 9)
-            ? 'G' + groupNum + '-' + itemNum
-            : 'G' + groupNum + itemNum;
+        return 'P' + '.' + groupNum + '.' + itemNum;
     }
 
     // ── Recull totes les dades de tots els grups ──
